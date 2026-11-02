@@ -9,5 +9,7 @@ enum class Suit(val weight: Int) {
     companion object {
         val mostValuable = SPADE
         val leastValuable = DIAMOND
+
+        fun fromWeight(weight: Int): Suit? = entries.firstOrNull { it.weight == weight }
     }
 }

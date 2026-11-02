@@ -21,9 +21,9 @@ object HandFinder {
         return allHands
     }
 
-    private fun findSingles(cards: List<Card>): List<Single> = cards.map { Single(it) }
+    fun findSingles(cards: List<Card>): List<Single> = cards.map { Single(it) }
 
-    private fun findPairs(cards: List<Card>): List<Pair> {
+    fun findPairs(cards: List<Card>): List<Pair> {
         val pairs = mutableListOf<Pair>()
         for (i in 0 until cards.size) {
             for (j in i + 1 until cards.size) {
@@ -35,7 +35,7 @@ object HandFinder {
         return pairs
     }
 
-    private fun findTrios(cards: List<Card>): List<Trio> {
+    fun findTrios(cards: List<Card>): List<Trio> {
         val trios = mutableListOf<Trio>()
         for (i in 0 until cards.size) {
             for (j in i + 1 until cards.size) {
@@ -49,44 +49,51 @@ object HandFinder {
         return trios
     }
     
-    private fun findStraights(cards: List<Card>): List<Straight> {
+    fun findStraights(cards: List<Card>): List<Straight> {
         val results = mutableListOf<Straight>()
         val combinations = getCombinations(cards, 5)
         for (combo in combinations) {
-            if (isConsecutive(combo) && !hasBothExtremes(combo) && !isSameSuit(combo)) {
+            if (isStrictlyConsecutive(combo) && !isSameSuit(combo)) {
                 results.add(Straight(combo))
             }
         }
         return results
     }
     
-    private fun findFlushes(cards: List<Card>): List<Flush> {
+    fun findFlushes(cards: List<Card>): List<Flush> {
         val results = mutableListOf<Flush>()
         val combinations = getCombinations(cards, 5)
         for (combo in combinations) {
-            if (isSameSuit(combo) && (!isConsecutive(combo) || hasBothExtremes(combo))) {
+            if (isSameSuit(combo) && !isStrictlyConsecutive(combo)) {
                 results.add(Flush(combo))
             }
         }
         return results
     }
     
-    private fun findFullHouses(cards: List<Card>): List<FullHouse> {
+    fun findFullHouses(cards: List<Card>): List<FullHouse> {
         val results = mutableListOf<FullHouse>()
-        val trios = findTrios(cards)
-        val pairs = findPairs(cards)
+        val grouped = cards.groupBy { it.rank }
         
-        for (t in trios) {
-            for (p in pairs) {
-                if (t.cards.intersect(p.cards.toSet()).isEmpty()) {
-                    results.add(FullHouse(t.cards, p.cards))
+        val trioCandidates = grouped.filter { it.value.size >= 3 }
+        val pairCandidates = grouped.filter { it.value.size >= 2 }
+        
+        for ((trioRank, trioCards) in trioCandidates) {
+            val trioCombos = if (trioCards.size == 4) getCombinations(trioCards, 3) else listOf(trioCards)
+            for ((pairRank, pairCards) in pairCandidates) {
+                if (trioRank == pairRank) continue
+                val pairCombos = getCombinations(pairCards, 2)
+                for (trio in trioCombos) {
+                    for (pair in pairCombos) {
+                        results.add(FullHouse(trio, pair))
+                    }
                 }
             }
         }
-        return results
+        return results.distinctBy { it.cards.toSet() }
     }
     
-    private fun findFourOfAKinds(cards: List<Card>): List<FourOfAKind> {
+    fun findFourOfAKinds(cards: List<Card>): List<FourOfAKind> {
         val results = mutableListOf<FourOfAKind>()
         val grouped = cards.groupBy { it.rank }.filter { it.value.size == 4 }
         
@@ -99,45 +106,39 @@ object HandFinder {
         return results
     }
     
-    private fun findStraightFlushes(cards: List<Card>): List<StraightFlush> {
+    fun findStraightFlushes(cards: List<Card>): List<StraightFlush> {
         val results = mutableListOf<StraightFlush>()
         val combinations = getCombinations(cards, 5)
         for (combo in combinations) {
-            if (isConsecutive(combo) && isSameSuit(combo) && !hasBothExtremes(combo)) {
+            if (isStrictlyConsecutive(combo) && isSameSuit(combo)) {
                 results.add(StraightFlush(combo))
             }
         }
         return results
     }
 
-    private fun isConsecutive(combo: List<Card>): Boolean {
-        val sortedRanks = combo.map { it.rank.weight }.sorted()
-        var isSeq = true
+    /**
+     * Checks if 5 cards are strictly consecutive without wrapping.
+     * In CDD: Ranks are 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K, A, 2.
+     * Strictly no wrapping: Cannot contain both smallest rank 3 and biggest rank 2.
+     * Valid straights have sorted rank weights: [w, w+1, w+2, w+3, w+4] with w in 3..11.
+     * Examples of rejected wrapping hands: A-2-3-4-5, Q-K-A-2-3, K-A-2-3-4, 2-3-4-5-6.
+     */
+    fun isStrictlyConsecutive(combo: List<Card>): Boolean {
+        if (combo.size != 5) return false
+        
+        // Disallow wrapping: cannot contain both 3 and 2
+        val hasThree = combo.any { it.rank == Rank.THREE }
+        val hasTwo = combo.any { it.rank == Rank.TWO }
+        if (hasThree && hasTwo) return false
+
+        val sortedWeights = combo.map { it.rank.weight }.sorted()
         for (i in 0 until 4) {
-            if (sortedRanks[i+1] - sortedRanks[i] != 1) {
-                isSeq = false
-                break
+            if (sortedWeights[i + 1] - sortedWeights[i] != 1) {
+                return false
             }
         }
-        if (isSeq) return true
-        
-        val validSequences = listOf(
-            listOf(14, 15, 3, 4, 5),
-            listOf(15, 3, 4, 5, 6),
-            listOf(12, 13, 14, 15, 3),
-            listOf(13, 14, 15, 3, 4)
-        )
-        
-        for (seq in validSequences) {
-            if (sortedRanks == seq.sorted()) return true
-        }
-        return false
-    }
-    
-    private fun hasBothExtremes(combo: List<Card>): Boolean {
-        val hasSmallest = combo.any { it.rank == Rank.THREE }
-        val hasBiggest = combo.any { it.rank == Rank.TWO }
-        return hasSmallest && hasBiggest
+        return true
     }
     
     private fun isSameSuit(combo: List<Card>): Boolean {
@@ -159,5 +160,28 @@ object HandFinder {
         }
         combine(0, mutableListOf())
         return results
+    }
+
+    fun getBestTacticalHand(hands: List<CddHand>, variation: Variation = Variation.MAINLAND): CddHand? {
+        if (hands.isEmpty()) return null
+        return hands.maxWithOrNull { h1, h2 ->
+            val w1 = getHandTacticalWeight(h1, variation)
+            val w2 = getHandTacticalWeight(h2, variation)
+            if (w1 != w2) w1.compareTo(w2) else h1.keyCard.compareTo(h2.keyCard)
+        }
+    }
+
+    private fun getHandTacticalWeight(hand: CddHand, variation: Variation): Int {
+        return when (hand) {
+            is StraightFlush -> 80
+            is FourOfAKind -> 70
+            is FullHouse -> 60
+            is Flush -> if (variation == Variation.MAINLAND) 50 else 40
+            is Straight -> if (variation == Variation.MAINLAND) 40 else 50
+            is Trio -> 30
+            is Pair -> 20
+            is Single -> 10
+            else -> 0
+        }
     }
 }

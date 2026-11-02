@@ -8,101 +8,183 @@ object DdzHandFinder {
     fun findAllHands(cards: List<DdzCard>): List<DdzHand> {
         val allHands = mutableListOf<DdzHand>()
         val groupedByRank = cards.groupBy { it.rank }
-        val counts = groupedByRank.mapValues { it.value.size }
         
-        // Basic components
+        // 1. Basic components
         val singles = mutableListOf<DdzSingle>()
         val pairs = mutableListOf<DdzPair>()
         val trios = mutableListOf<DdzTrio>()
-        val quattros = mutableListOf<List<DdzCard>>()
+        val bombs = mutableListOf<DdzBomb>()
         
-        for ((rank, group) in groupedByRank) {
+        for ((_, group) in groupedByRank) {
             group.forEach { singles.add(DdzSingle(it)) }
             if (group.size >= 2) {
-                // For pairs, we just take the first two for simplicity in finding hands, 
-                // in reality all combinations of pairs from the group could be considered.
-                pairs.add(DdzPair(group[0], group[1])) 
+                // Add pairs
+                for (i in 0 until group.size) {
+                    for (j in i + 1 until group.size) {
+                        pairs.add(DdzPair(group[i], group[j]))
+                    }
+                }
             }
-            if (group.size >= 3) trios.add(DdzTrio(group.take(3)))
-            if (group.size == 4) quattros.add(group)
+            if (group.size >= 3) {
+                for (i in 0 until group.size) {
+                    for (j in i + 1 until group.size) {
+                        for (k in j + 1 until group.size) {
+                            trios.add(DdzTrio(listOf(group[i], group[j], group[k])))
+                        }
+                    }
+                }
+            }
+            if (group.size == 4) {
+                bombs.add(DdzBomb(group))
+            }
         }
         
         allHands.addAll(singles)
-        allHands.addAll(pairs)
-        allHands.addAll(trios)
-        allHands.addAll(quattros.map { DdzBomb(it) })
+        // Deduplicate pairs by distinct card contents
+        val distinctPairs = pairs.distinctBy { it.cards.toSet() }
+        allHands.addAll(distinctPairs)
         
-        // Rocket
-        val jokers = cards.filter { it.rank == DdzRank.BLACK_JOKER || it.rank == DdzRank.RED_JOKER }
-        if (jokers.size == 2) {
-            allHands.add(DdzRocket(jokers))
+        val distinctTrios = trios.distinctBy { it.cards.toSet() }
+        allHands.addAll(distinctTrios)
+        allHands.addAll(bombs)
+        
+        // 2. Rocket (King Bomb)
+        val blackJoker = cards.find { it.rank == DdzRank.BLACK_JOKER }
+        val redJoker = cards.find { it.rank == DdzRank.RED_JOKER }
+        if (blackJoker != null && redJoker != null) {
+            allHands.add(DdzRocket(listOf(blackJoker, redJoker)))
         }
 
-        // Trios with kickers
-        for (trio in trios) {
-            val remainingSingles = singles.filter { it.card.rank != trio.keyCard.rank }
-            remainingSingles.forEach { allHands.add(DdzTrioWithSingle(trio.trioCards, it.card)) }
+        // 3. Trios with kickers (Single and Pair)
+        // Use representative trio per rank to avoid combinatoric explosion while covering all tactical hands
+        val repTriosByRank = groupedByRank.filter { it.value.size >= 3 }.mapValues { it.value.take(3) }
+        val repPairsByRank = groupedByRank.filter { it.value.size >= 2 }.mapValues { it.value.take(2) }
+
+        for ((trioRank, trioCards) in repTriosByRank) {
+            // Trio + Single
+            val remainingSingles = cards.filter { it !in trioCards && it.rank != trioRank }
+                .distinctBy { it.rank }
+            for (single in remainingSingles) {
+                allHands.add(DdzTrioWithSingle(trioCards, single))
+            }
             
-            val remainingPairs = pairs.filter { it.keyCard.rank != trio.keyCard.rank }
-            remainingPairs.forEach { allHands.add(DdzTrioWithPair(trio.trioCards, it.cards)) }
-        }
-
-        // Straights (Length >= 5, max rank A)
-        val plainCards = cards.filter { it.rank.weight <= DdzRank.ACE.weight }.distinctBy { it.rank }
-        val sortedPlain = plainCards.sortedBy { it.rank.weight }
-        for (i in 0 until sortedPlain.size) {
-            for (len in 5..sortedPlain.size - i) {
-                val sub = sortedPlain.subList(i, i + len)
-                if (sub.last().rank.weight - sub.first().rank.weight == len - 1) {
-                    allHands.add(DdzStraight(sub))
+            // Trio + Pair
+            for ((pairRank, pairCards) in repPairsByRank) {
+                if (pairRank != trioRank) {
+                    allHands.add(DdzTrioWithPair(trioCards, pairCards))
                 }
             }
         }
 
-        // Consecutive Pairs (Length >= 3 pairs, max rank A)
-        val validPairs = pairs.filter { it.keyCard.rank.weight <= DdzRank.ACE.weight }.sortedBy { it.keyCard.rank.weight }
-        for (i in 0 until validPairs.size) {
-            for (len in 3..validPairs.size - i) {
-                val sub = validPairs.subList(i, i + len)
-                if (sub.last().keyCard.rank.weight - sub.first().keyCard.rank.weight == len - 1) {
-                    allHands.add(DdzConsecutivePairs(sub.flatMap { it.cards }))
+        // 4. Straights (Length >= 5, ranks 3 to Ace only, no 2 or Jokers)
+        val plainRanks = groupedByRank.keys
+            .filter { it.weight <= DdzRank.ACE.weight }
+            .sortedBy { it.weight }
+            
+        for (i in 0 until plainRanks.size) {
+            for (len in 5..(plainRanks.size - i)) {
+                val subRanks = plainRanks.subList(i, i + len)
+                // Check if consecutive
+                if (subRanks.last().weight - subRanks.first().weight == len - 1) {
+                    val straightCards = subRanks.map { groupedByRank[it]!!.first() }
+                    allHands.add(DdzStraight(straightCards))
+                }
+            }
+        }
+
+        // 5. Consecutive Pairs (Length >= 3 pairs, ranks 3 to Ace only)
+        val pairRanks = repPairsByRank.keys
+            .filter { it.weight <= DdzRank.ACE.weight }
+            .sortedBy { it.weight }
+            
+        for (i in 0 until pairRanks.size) {
+            for (len in 3..(pairRanks.size - i)) {
+                val subRanks = pairRanks.subList(i, i + len)
+                if (subRanks.last().weight - subRanks.first().weight == len - 1) {
+                    val consecutiveCards = subRanks.flatMap { repPairsByRank[it]!! }
+                    allHands.add(DdzConsecutivePairs(consecutiveCards))
                 }
             }
         }
         
-        // Airplanes
-        val validTrios = trios.filter { it.keyCard.rank.weight <= DdzRank.ACE.weight }.sortedBy { it.keyCard.rank.weight }
-        for (i in 0 until validTrios.size) {
-            for (len in 2..validTrios.size - i) {
-                val sub = validTrios.subList(i, i + len)
-                if (sub.last().keyCard.rank.weight - sub.first().keyCard.rank.weight == len - 1) {
-                    val airplaneCards = sub.flatMap { it.trioCards }
-                    allHands.add(DdzAirplane(airplaneCards)) // Without wings
+        // 6. Airplanes (>= 2 consecutive trios, ranks 3 to Ace only)
+        val trioRanks = repTriosByRank.keys
+            .filter { it.weight <= DdzRank.ACE.weight }
+            .sortedBy { it.weight }
+            
+        for (i in 0 until trioRanks.size) {
+            for (len in 2..(trioRanks.size - i)) {
+                val subRanks = trioRanks.subList(i, i + len)
+                if (subRanks.last().weight - subRanks.first().weight == len - 1) {
+                    val airplaneTrios = subRanks.flatMap { repTriosByRank[it]!! }
+                    val airplaneTrioSet = airplaneTrios.toSet()
                     
-                    // Airplane with small wings (single kickers)
-                    // Simplified: just check if we have enough other cards
-                    val otherCards = cards.filter { it !in airplaneCards }
-                    if (otherCards.size >= len) {
-                        allHands.add(DdzAirplane(airplaneCards, otherCards.take(len)))
+                    // Airplane without wings
+                    allHands.add(DdzAirplane(airplaneTrios))
+                    
+                    // Airplane with single wings (len distinct singles outside the trios)
+                    val availableSingles = cards.filter { it !in airplaneTrioSet }
+                    if (availableSingles.size >= len) {
+                        allHands.add(DdzAirplane(airplaneTrios, availableSingles.take(len)))
+                    }
+                    
+                    // Airplane with pair wings (len pairs outside the trios)
+                    val availablePairs = repPairsByRank
+                        .filter { it.key !in subRanks }
+                        .values.toList()
+                    if (availablePairs.size >= len) {
+                        val wingPairs = availablePairs.take(len).flatten()
+                        allHands.add(DdzAirplane(airplaneTrios, wingPairs))
                     }
                 }
             }
         }
         
-        // Four with Two (singles / pairs)
-        for (four in quattros) {
-            val remainCards = cards.filter { it !in four }
+        // 7. Four with Two (singles / pairs)
+        for (bomb in bombs) {
+            val quattroSet = bomb.cards.toSet()
+            val remainCards = cards.filter { it !in quattroSet }
+            
+            // Four with 2 singles
             if (remainCards.size >= 2) {
-                allHands.add(DdzFourWithTwoSingles(four, remainCards.take(2)))
+                allHands.add(DdzFourWithTwoSingles(bomb.cards, remainCards.take(2)))
             }
-            if (pairs.size >= 3) { // 1 pair is from the quattro itself, so we need > 1 other pair usually, but doing generic check
-                val otherPairs = pairs.filter { it.keyCard.rank != four.first().rank }
-                if (otherPairs.size >= 2) {
-                    allHands.add(DdzFourWithTwoPairs(four, otherPairs.take(2).flatMap { it.cards }))
-                }
+            
+            // Four with 2 pairs
+            val otherPairs = repPairsByRank
+                .filter { it.key != bomb.keyCard.rank }
+                .values.toList()
+            if (otherPairs.size >= 2) {
+                allHands.add(DdzFourWithTwoPairs(bomb.cards, otherPairs.take(2).flatten()))
             }
         }
 
         return allHands
+    }
+
+    fun getBestTacticalHand(hands: List<DdzHand>): DdzHand? {
+        if (hands.isEmpty()) return null
+        return hands.maxWithOrNull { h1, h2 ->
+            val w1 = getDdzTacticalWeight(h1)
+            val w2 = getDdzTacticalWeight(h2)
+            if (w1 != w2) w1.compareTo(w2) else h1.keyCard.rank.weight.compareTo(h2.keyCard.rank.weight)
+        }
+    }
+
+    private fun getDdzTacticalWeight(hand: DdzHand): Int {
+        return when (hand) {
+            is DdzRocket -> 100
+            is DdzBomb -> 90
+            is DdzAirplane -> if (hand.kickers.isNotEmpty()) 80 else 75
+            is DdzConsecutivePairs -> 70
+            is DdzStraight -> 60
+            is DdzFourWithTwoPairs -> 55
+            is DdzFourWithTwoSingles -> 50
+            is DdzTrioWithPair -> 45
+            is DdzTrioWithSingle -> 40
+            is DdzTrio -> 30
+            is DdzPair -> 20
+            is DdzSingle -> 10
+        }
     }
 }

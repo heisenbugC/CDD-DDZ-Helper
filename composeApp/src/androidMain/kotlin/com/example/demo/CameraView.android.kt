@@ -11,87 +11,89 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.example.demo.tflite.CardClassifier
-import com.example.demo.services.NativeCardDetectionService
-import java.nio.ByteBuffer
-import java.util.concurrent.Executors
+import com.example.demo.domain.CardMapping
+import com.example.demo.guidance.NormalizedBox
+import com.example.demo.preprocessing.preprocessImageProxy
+import com.example.demo.tflite.LiteRtCardClassifier
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 @Composable
-actual fun CameraView(modifier: Modifier, onCardsDetected: (List<String>) -> Unit) {
+actual fun CameraView(
+    modifier: Modifier,
+    onCardsDetected: (List<String>) -> Unit,
+    onBoxesDetected: ((List<NormalizedBox>) -> Unit)?
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val previewView = remember { PreviewView(context) }
-    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
-    val classifier = remember { CardClassifier(context) }
-    val detectionService = remember { NativeCardDetectionService() }
+    // Dynamically update callback references on every recomposition without rebuilding CameraX
+    val currentOnCardsDetected by rememberUpdatedState(onCardsDetected)
+    val currentOnBoxesDetected by rememberUpdatedState(onBoxesDetected)
 
-    val suits = listOf("Diamond", "Club", "Heart", "Spade", "Joker")
-    val ranks = listOf("3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A", "2", "Black Joker", "Red Joker")
+    val previewView = remember { PreviewView(context) }
+    val analysisExecutor = remember {
+        ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS,
+            LinkedBlockingQueue(1),
+            ThreadPoolExecutor.DiscardPolicy()
+        )
+    }
+    val classifier = remember { LiteRtCardClassifier(context) }
 
     // Camera binding must happen after the view is attached
     DisposableEffect(lifecycleOwner) {
+        var activeCameraProvider: ProcessCameraProvider? = null
+        var activeImageAnalyzer: ImageAnalysis? = null
+
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
-
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
-
-            val imageAnalyzer = ImageAnalysis.Builder()
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-
-            imageAnalyzer.setAnalyzer(analysisExecutor) { imageProxy ->
-                try {
-                    val buffer: ByteBuffer = imageProxy.planes[0].buffer
-                    val bytes = ByteArray(buffer.remaining())
-                    buffer.get(bytes)
-                    val width = imageProxy.width
-                    val height = imageProxy.height
-
-                    val boxes = detectionService.findCardBoundingBoxes(bytes, width, height)
-
-                    val bitmap = imageProxy.toBitmap()
-                    val detections = classifier.classify(bitmap)
-                    
-                    android.util.Log.d("CardClassifier", "Detected ${detections.size} objects")
-
-                    if (detections.isNotEmpty()) {
-                        val classIdToName = arrayOf(
-                            "10_of_clubs", "10_of_diamonds", "3_of_hearts", "3_of_spades", "4_of_clubs", 
-                            "4_of_diamonds", "4_of_hearts", "4_of_spades", "5_of_clubs", "5_of_diamonds", 
-                            "5_of_hearts", "5_of_spades", "10_of_hearts", "6_of_clubs", "6_of_diamonds", 
-                            "6_of_hearts", "6_of_spades", "7_of_clubs", "7_of_diamonds", "7_of_hearts", 
-                            "7_of_spades", "8_of_clubs", "8_of_diamonds", "10_of_spades", "8_of_hearts", 
-                            "8_of_spades", "9_of_clubs", "9_of_diamonds", "9_of_hearts", "9_of_spades", 
-                            "ace_of_clubs", "ace_of_diamonds", "ace_of_hearts", "ace_of_spades", "2_of_clubs", 
-                            "jack_of_clubs", "jack_of_diamonds", "jack_of_hearts", "jack_of_spades", "king_of_clubs", 
-                            "king_of_diamonds", "king_of_hearts", "king_of_spades", "queen_of_clubs", "queen_of_diamonds", 
-                            "2_of_diamonds", "queen_of_hearts", "queen_of_spades", "2_of_hearts", "2_of_spades", 
-                            "3_of_clubs", "3_of_diamonds", "black_joker", "red_joker"
-                        )
-                        
-                        val stringResults = detections.map { det ->
-                            if (det.classId in classIdToName.indices) {
-                                classIdToName[det.classId]
-                            } else {
-                                "unknown_${det.classId}"
-                            }
-                        }
-                        
-                        android.util.Log.d("CardClassifier", "Cards: $stringResults")
-                        onCardsDetected(stringResults)
-                    }
-                } finally {
-                    imageProxy.close()
-                }
-            }
-
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
             try {
+                val cameraProvider = cameraProviderFuture.get()
+                activeCameraProvider = cameraProvider
+
+                val preview = Preview.Builder().build().also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
+
+                val imageAnalyzer = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setTargetResolution(android.util.Size(1280, 720))
+                    .build()
+                activeImageAnalyzer = imageAnalyzer
+
+                imageAnalyzer.setAnalyzer(analysisExecutor) { imageProxy ->
+                    try {
+                        // Step 1 & 2: Preprocess CameraX image via pure Kotlin pipeline
+                        val preprocessor = classifier.preprocessor
+                        val inputBuffer = preprocessor.preprocessImageProxy(imageProxy)
+
+                        // Step 3: Run LiteRT card classification with QNN/GPU acceleration
+                        val detections = classifier.detect(inputBuffer, preprocessor.sharpenedBuffer)
+
+                        // Step 4 & 5: Safely dispatch bounding boxes and card labels to Main UI thread
+                        val stringResults = if (detections.isNotEmpty()) {
+                            detections.mapNotNull { det ->
+                                CardMapping.getLabel(det.classId)
+                            }
+                        } else {
+                            emptyList()
+                        }
+
+                        ContextCompat.getMainExecutor(context).execute {
+                            currentOnBoxesDetected?.invoke(detections)
+                            currentOnCardsDetected(stringResults)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("CameraView", "Inference error: ${e.message}", e)
+                    } finally {
+                        imageProxy.close()
+                    }
+                }
+
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
@@ -105,10 +107,12 @@ actual fun CameraView(modifier: Modifier, onCardsDetected: (List<String>) -> Uni
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            activeImageAnalyzer?.clearAnalyzer()
             try {
-                val cp = ProcessCameraProvider.getInstance(context).get()
-                cp.unbindAll()
+                activeCameraProvider?.unbindAll()
             } catch (_: Exception) {}
+            analysisExecutor.shutdown()
+            classifier.close()
         }
     }
 

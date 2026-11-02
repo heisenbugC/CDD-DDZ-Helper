@@ -33,8 +33,9 @@ kotlin {
             implementation("androidx.camera:camera-camera2:1.3.4")
             implementation("androidx.camera:camera-lifecycle:1.3.4")
             implementation("androidx.camera:camera-view:1.3.4")
-            implementation("org.tensorflow:tensorflow-lite:2.16.1")
-            implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+            implementation("com.google.ai.edge.litert:litert:1.0.1")
+            implementation("com.google.ai.edge.litert:litert-gpu:1.0.1")
+            implementation("com.google.ai.edge.litert:litert-support:1.0.1")
         }
         commonMain.dependencies {
             implementation(compose.runtime)

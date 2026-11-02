@@ -14,4 +14,9 @@ enum class Rank(val weight: Int, val label: String) {
     KING(13, "K"),
     ACE(14, "A"),
     TWO(15, "2");
+
+    companion object {
+        fun fromWeight(weight: Int): Rank? = entries.firstOrNull { it.weight == weight }
+        fun fromLabel(label: String): Rank? = entries.firstOrNull { it.label.equals(label, ignoreCase = true) }
+    }
 }

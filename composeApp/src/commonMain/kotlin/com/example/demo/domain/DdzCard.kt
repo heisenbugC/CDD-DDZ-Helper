@@ -23,12 +23,23 @@ enum class DdzRank(val weight: Int, val label: String) {
 }
 
 data class DdzCard(val suit: DdzSuit, val rank: DdzRank) : Comparable<DdzCard> {
+    /**
+     * Natural Comparable ordering for DDZ:
+     * Primary: Rank weight (3 < 4 ... < 2 < Black Joker < Red Joker).
+     * Secondary: Suit ordinal (Diamond < Club < Heart < Spade < Joker) for stable unique ordering.
+     */
     override fun compareTo(other: DdzCard): Int {
-        // In DDZ suit has no impact on weight for logic comparison
-        return this.rank.weight.compareTo(other.rank.weight)
+        val rankDiff = this.rank.weight.compareTo(other.rank.weight)
+        if (rankDiff != 0) return rankDiff
+        return this.suit.ordinal.compareTo(other.suit.ordinal)
     }
     
     override fun toString(): String {
         return if (suit == DdzSuit.JOKER) rank.label else "${suit.name.first()}${rank.label}"
+    }
+
+    companion object {
+        fun fromClassId(classId: Int): DdzCard? = CardMapping.toDdzCard(classId)
+        fun fromLabel(label: String): DdzCard? = CardMapping.parseDdzLabel(label)
     }
 }

@@ -1,6 +1,7 @@
 *.iml
 .kotlin/
 .gradle
+.gradle_home/
 **/build/
 xcuserdata
 !src/**/build/
@@ -24,8 +25,19 @@ JOKERS-1/
 training/dataset_v1/
 training/models/
 training/poker--2/
+training/roboflow_jokers/
 training/tflite_model_ddz_s/
 training/tflite_model/
 training/tflite_model_ddz/
 training/yolov5/
 training/yolov9/
+training/batman_cards/
+.test_classes/
+.antigravity/
+.roomodes
+Plan.md
+ARCHITECTURE.md
+TODO.md
+*.txt
+*.ps1
+yolov8s.pt

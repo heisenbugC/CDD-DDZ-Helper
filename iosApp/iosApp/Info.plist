@@ -3,10 +3,14 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>锄大地助手</string>
+	<string>锄大地斗地主助手</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app requires camera access to recognize cards.</string>
+	<string>需要相机权限以扫描并识别桌面上的卡牌。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>需要麦克风权限以支持免提语音控制（如锁定手牌、报牌、换模式等）。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>需要语音识别权限以处理普通话、粤语及英语的语音报牌指令。</string>
 </dict>
 </plist>
