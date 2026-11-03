@@ -2,6 +2,48 @@ import os
 import shutil
 import subprocess
 
+def find_adb():
+    # 1. PATH lookup
+    adb = shutil.which("adb")
+    if adb:
+        return adb
+    
+    # 2. ANDROID_HOME / ANDROID_SDK_ROOT environment lookup
+    for env_var in ["ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_SDK"]:
+        base = os.environ.get(env_var)
+        if base:
+            candidate = os.path.join(base, "platform-tools", "adb.exe")
+            if os.path.exists(candidate):
+                return candidate
+                
+    # 3. Known standard Windows Android SDK paths
+    candidates = [
+        r"D:\Users\koonlam\AppData\Local\Android\Sdk\platform-tools\adb.exe",
+        r"C:\Users\koonlam\AppData\Local\Android\Sdk\platform-tools\adb.exe",
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+def get_connected_devices(adb_exe):
+    if not adb_exe or not os.path.exists(adb_exe):
+        return []
+    try:
+        res = subprocess.run([adb_exe, "devices"], capture_output=True, text=True, timeout=5)
+        devices = []
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if not line or line.startswith("List of devices"):
+                continue
+            parts = line.split()
+            if len(parts) >= 2 and parts[1] == "device":
+                devices.append(parts[0])
+        return devices
+    except Exception as e:
+        print(f"Warning checking adb devices: {e}")
+        return []
+
 def main():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     candidates = [
@@ -62,13 +104,33 @@ def main():
         print(apk_path)
         print("=" * 60)
         
-        # Check if device is attached for auto-install
-        adb_check = subprocess.run(["adb", "devices"], capture_output=True, text=True)
-        lines = [l for l in adb_check.stdout.splitlines() if l.strip() and not l.startswith("List")]
-        if lines:
-            print("\nDevice detected! Installing to device...")
-            subprocess.run([gradlew, ":androidApp:installDebug"], cwd=root_dir)
-            print("Installed successfully to device!")
+        # 4. Check for connected physical Android device and auto-install
+        adb_exe = find_adb()
+        if adb_exe:
+            devices = get_connected_devices(adb_exe)
+            if devices:
+                print("\n" + "=" * 60)
+                print(f"Physical Android device detected: {devices}")
+                print("Installing updated APK directly via ADB...")
+                print("=" * 60)
+                for dev_id in devices:
+                    print(f"Installing {os.path.basename(apk_path)} to device [{dev_id}]...")
+                    install_res = subprocess.run([adb_exe, "-s", dev_id, "install", "-r", apk_path])
+                    if install_res.returncode == 0:
+                        print(f"[SUCCESS] APK successfully installed to device [{dev_id}]!")
+                        # Launch the app
+                        launch_res = subprocess.run([
+                            adb_exe, "-s", dev_id, "shell", "am", "start", "-n",
+                            "com.example.cddddzhelper/.MainActivity"
+                        ])
+                        if launch_res.returncode == 0:
+                            print(f"[SUCCESS] App launched on device [{dev_id}]!")
+                    else:
+                        print(f"[WARNING] ADB install to device [{dev_id}] failed (code: {install_res.returncode})")
+            else:
+                print("\n[INFO] No physical Android device attached via ADB. Skipping auto-install.")
+        else:
+            print("\n[INFO] ADB executable not found. Skipping auto-install.")
 
 if __name__ == "__main__":
     main()

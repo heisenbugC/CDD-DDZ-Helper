@@ -40,4 +40,5 @@ ARCHITECTURE.md
 TODO.md
 *.txt
 *.ps1
+*.bat
 yolov8s.pt
