@@ -323,8 +323,8 @@ public class DdzHandFinder {
         }
         
         // Representative trios and pairs for combinations
-        let repTrios = grouped.filter { $0.value.count >= 3 }.mapValues { Array($0.value.prefix(3)) }
-        let repPairs = grouped.filter { $0.value.count >= 2 }.mapValues { Array($0.value.prefix(2)) }
+        let repTrios = grouped.compactMapValues { $0.count >= 3 ? Array($0.prefix(3)) : nil }
+        let repPairs = grouped.compactMapValues { $0.count >= 2 ? Array($0.prefix(2)) : nil }
         
         // 6. Trios with single / pair
         for (trioRank, trioCards) in repTrios {
@@ -355,7 +355,7 @@ public class DdzHandFinder {
             .sorted(by: { $0.weight < $1.weight })
         
         if straightRanks.count >= 5 {
-            for i in 0..<straightRanks.count {
+            for i in 0...(straightRanks.count - 5) {
                 for len in 5...(straightRanks.count - i) {
                     let subRanks = Array(straightRanks[i..<(i + len)])
                     if subRanks.last!.weight - subRanks.first!.weight == len - 1 {
@@ -377,7 +377,7 @@ public class DdzHandFinder {
             .sorted(by: { $0.weight < $1.weight })
         
         if pairRanks.count >= 3 {
-            for i in 0..<pairRanks.count {
+            for i in 0...(pairRanks.count - 3) {
                 for len in 3...(pairRanks.count - i) {
                     let subRanks = Array(pairRanks[i..<(i + len)])
                     if subRanks.last!.weight - subRanks.first!.weight == len - 1 {
@@ -399,7 +399,7 @@ public class DdzHandFinder {
             .sorted(by: { $0.weight < $1.weight })
         
         if trioRanks.count >= 2 {
-            for i in 0..<trioRanks.count {
+            for i in 0...(trioRanks.count - 2) {
                 for len in 2...(trioRanks.count - i) {
                     let subRanks = Array(trioRanks[i..<(i + len)])
                     if subRanks.last!.weight - subRanks.first!.weight == len - 1 {
@@ -475,6 +475,10 @@ public class DdzHandFinder {
             }
             return h1.keyCard > h2.keyCard
         }
+    }
+    
+    public static func getBestTacticalHand(hands: [DdzHand]) -> DdzHand? {
+        return hands.first
     }
 }
 
@@ -625,6 +629,10 @@ public class CddHandFinder {
             }
             return h1.keyCard > h2.keyCard
         }
+    }
+    
+    public static func getBestTacticalHand(hands: [CddHand], variation: CddVariation = .mainland) -> CddHand? {
+        return hands.first
     }
     
     private static func priority(_ cat: CddHandCategory, variation: CddVariation) -> Int {

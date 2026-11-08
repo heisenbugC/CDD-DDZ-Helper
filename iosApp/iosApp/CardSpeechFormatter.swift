@@ -1,5 +1,43 @@
 import Foundation
 
+// MARK: - CardRank Spoken Pronunciation Customization
+
+extension CardRank {
+    public func spokenName(for language: VoiceLanguage) -> String {
+        switch language {
+        case .mandarin:
+            switch self {
+            case .jack: return "勾"
+            case .queen: return "圈儿"
+            case .ace: return "尖儿"
+            case .blackJoker: return "小王"
+            case .redJoker: return "大王"
+            default: return rawValue
+            }
+        case .cantonese:
+            switch self {
+            case .jack: return "积"
+            case .queen: return "膂"
+            case .king: return "倾"
+            case .ace: return "烟"
+            case .blackJoker: return "细鬼"
+            case .redJoker: return "大鬼"
+            default: return rawValue
+            }
+        case .english:
+            switch self {
+            case .jack: return "Jack"
+            case .queen: return "Queen"
+            case .king: return "King"
+            case .ace: return "Ace"
+            case .blackJoker: return "Black Joker"
+            case .redJoker: return "Red Joker"
+            default: return rawValue
+            }
+        }
+    }
+}
+
 /**
  * CardSpeechFormatter: Natural language speech synthesis formatter
  * generating Cantonese, Mandarin, and English voice announcements.
@@ -57,7 +95,7 @@ public class CardSpeechFormatter {
         
         // 1. Rocket
         if let _ = hands.first(where: { $0.category == .rocket }) {
-            sections.append(language == .english ? "Rocket, Red and Black Joker" : "王炸火箭，大王配小王")
+            sections.append(language == .english ? "Rocket, Red and Black Joker" : (language == .cantonese ? "王炸火箭，大鬼配細鬼" : "王炸火箭，大王配小王"))
         }
         
         // 2. Bombs
@@ -90,11 +128,15 @@ public class CardSpeechFormatter {
         
         // 6. High singles
         let highSingles = cards.filter { $0.rank.weight >= CardRank.ten.weight }.sorted(by: { $0 > $1 })
-        let distinctHighSingles = Dictionary(grouping: highSingles, by: { $0.rank }).compactMap { $0.value.first }
+        let distinctHighSingles = Dictionary(grouping: highSingles, by: { $0.rank }).compactMap { $0.value.first }.sorted(by: { $0 > $1 })
         if !distinctHighSingles.isEmpty {
             let singlesText = distinctHighSingles.prefix(4).map { describeCard($0, language: language) }.joined(separator: "、")
             let prefix = (language == .cantonese) ? "單張大牌：" : (language == .mandarin ? "单张大牌：" : "High singles: ")
             sections.append("\(prefix)\(singlesText)")
+        }
+        
+        if sections.isEmpty {
+            return "\(countStr) \(bestStr)"
         }
         
         let intro = (language == .cantonese) ? "手牌組合包含：" : (language == .mandarin ? "手牌组合包含：" : "Combinations: ")
@@ -169,10 +211,15 @@ public class CardSpeechFormatter {
         }
         
         let highSingles = nonJokers.filter { $0.rank.weight >= CardRank.ace.weight }.sorted(by: { $0 > $1 })
-        if !highSingles.isEmpty {
-            let singlesText = highSingles.map { describeCard($0, language: language) }.joined(separator: "、")
+        let distinctHighSingles = Dictionary(grouping: highSingles, by: { $0.rank }).compactMap { $0.value.first }.sorted(by: { $0 > $1 })
+        if !distinctHighSingles.isEmpty {
+            let singlesText = distinctHighSingles.map { describeCard($0, language: language) }.joined(separator: "、")
             let prefix = (language == .cantonese) ? "單張大牌：" : (language == .mandarin ? "单张大牌：" : "High singles: ")
             sections.append("\(prefix)\(singlesText)")
+        }
+        
+        if sections.isEmpty {
+            return "\(countStr) \(bestStr)"
         }
         
         let intro = (language == .cantonese) ? "手牌組合包含：" : (language == .mandarin ? "手牌组合包含：" : "Combinations: ")
@@ -181,105 +228,126 @@ public class CardSpeechFormatter {
     }
     
     public static func describeDdzHand(_ hand: DdzHand, language: VoiceLanguage) -> String {
+        let rankSpoken = hand.keyCard.rank.spokenName(for: language)
         switch language {
         case .cantonese:
             switch hand.category {
-            case .rocket: return "王炸火箭，大王配小王"
-            case .bomb: return "炸彈4張\(hand.keyCard.rank.label)"
+            case .rocket: return "王炸火箭，大鬼配細鬼"
+            case .bomb: return "炸彈4隻\(rankSpoken)"
             case .airplaneWithWings: return "大飛機帶翅膀\(hand.cards.count)張"
             case .airplanePure: return "純飛機\(hand.cards.count)張"
-            case .consecutivePairs: return "連對\(hand.cards.count)張"
-            case .straight: return "順子\(hand.cards.count)張：\(hand.cards.first?.rank.label ?? "")到\(hand.cards.last?.rank.label ?? "")"
-            case .fourWithTwoPairs: return "四帶兩對8張"
-            case .fourWithTwoSingles: return "四帶二6張"
-            case .trioWithPair: return "三帶二5張：三隻\(hand.keyCard.rank.label)帶一對"
-            case .trioWithSingle: return "三帶一4張：三隻\(hand.keyCard.rank.label)帶單隻"
-            case .trio: return "三條3張：三隻\(hand.keyCard.rank.label)"
-            case .pair: return "對子：一對\(hand.keyCard.rank.label)"
+            case .consecutivePairs:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "連對\(hand.cards.count)張：\(startRank)到\(endRank)"
+            case .straight:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "順子\(hand.cards.count)張：\(startRank)到\(endRank)"
+            case .fourWithTwoPairs: return "四帶兩對8張：4隻\(rankSpoken)帶兩對"
+            case .fourWithTwoSingles: return "四帶二6張：4隻\(rankSpoken)帶兩隻"
+            case .trioWithPair: return "三帶二5張：三隻\(rankSpoken)帶一對"
+            case .trioWithSingle: return "三帶一4張：三隻\(rankSpoken)帶單隻"
+            case .trio: return "三條3張：三隻\(rankSpoken)"
+            case .pair: return "對子：一對\(rankSpoken)"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         case .mandarin:
             switch hand.category {
             case .rocket: return "王炸火箭，大王配小王"
-            case .bomb: return "炸弹4张\(hand.keyCard.rank.label)"
+            case .bomb: return "炸弹4张\(rankSpoken)"
             case .airplaneWithWings: return "大飞机带翅膀\(hand.cards.count)张"
             case .airplanePure: return "纯飞机\(hand.cards.count)张"
-            case .consecutivePairs: return "连对\(hand.cards.count)张"
-            case .straight: return "顺子\(hand.cards.count)张：\(hand.cards.first?.rank.label ?? "")到\(hand.cards.last?.rank.label ?? "")"
-            case .fourWithTwoPairs: return "四带两对8张"
-            case .fourWithTwoSingles: return "四带二6张"
-            case .trioWithPair: return "三带二5张：三张\(hand.keyCard.rank.label)带一对"
-            case .trioWithSingle: return "三带一4张：三张\(hand.keyCard.rank.label)带单张"
-            case .trio: return "三条3张：三张\(hand.keyCard.rank.label)"
-            case .pair: return "对子：对\(hand.keyCard.rank.label)"
+            case .consecutivePairs:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "连对\(hand.cards.count)张：\(startRank)到\(endRank)"
+            case .straight:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "顺子\(hand.cards.count)张：\(startRank)到\(endRank)"
+            case .fourWithTwoPairs: return "四带两对8张：4张\(rankSpoken)带两对"
+            case .fourWithTwoSingles: return "四带二6张：4张\(rankSpoken)带两张"
+            case .trioWithPair: return "三带二5张：三张\(rankSpoken)带一对"
+            case .trioWithSingle: return "三带一4张：三张\(rankSpoken)带单张"
+            case .trio: return "三条3张：三张\(rankSpoken)"
+            case .pair: return "对子：对\(rankSpoken)"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         case .english:
             switch hand.category {
             case .rocket: return "Rocket, Red and Black Joker"
-            case .bomb: return "Bomb four \(hand.keyCard.rank.label)s"
+            case .bomb: return "Bomb four \(rankSpoken)s"
             case .airplaneWithWings: return "Airplane with wings \(hand.cards.count) cards"
             case .airplanePure: return "Airplane \(hand.cards.count) cards"
-            case .consecutivePairs: return "Consecutive pairs \(hand.cards.count) cards"
-            case .straight: return "Straight \(hand.cards.count) cards"
-            case .fourWithTwoPairs: return "Four of a kind with two pairs"
-            case .fourWithTwoSingles: return "Four of a kind with two singles"
-            case .trioWithPair: return "Three \(hand.keyCard.rank.label)s with pair"
-            case .trioWithSingle: return "Three \(hand.keyCard.rank.label)s with single"
-            case .trio: return "Three \(hand.keyCard.rank.label)s"
-            case .pair: return "Pair of \(hand.keyCard.rank.label)s"
+            case .consecutivePairs:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "Consecutive pairs \(hand.cards.count) cards: \(startRank) to \(endRank)"
+            case .straight:
+                let startRank = hand.cards.min()?.rank.spokenName(for: language) ?? ""
+                let endRank = hand.cards.max()?.rank.spokenName(for: language) ?? ""
+                return "Straight \(hand.cards.count) cards: \(startRank) to \(endRank)"
+            case .fourWithTwoPairs: return "Four \(rankSpoken)s with two pairs"
+            case .fourWithTwoSingles: return "Four \(rankSpoken)s with two singles"
+            case .trioWithPair: return "Three \(rankSpoken)s with pair"
+            case .trioWithSingle: return "Three \(rankSpoken)s with single"
+            case .trio: return "Three \(rankSpoken)s"
+            case .pair: return "Pair of \(rankSpoken)s"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         }
     }
     
     public static func describeCddHand(_ hand: CddHand, language: VoiceLanguage) -> String {
+        let rankSpoken = hand.keyCard.rank.spokenName(for: language)
         switch language {
         case .cantonese:
             switch hand.category {
             case .straightFlush: return "同花順，最大\(describeCard(hand.keyCard, language: language))"
-            case .fourOfAKind: return "四條鐵支，4隻\(hand.keyCard.rank.label)帶單隻"
-            case .fullHouse: return "葫蘆(巨)，三隻\(hand.keyCard.rank.label)帶一對"
-            case .flush: return "同花，\(describeSuit(hand.keyCard.suit, language: language))，最大\(hand.keyCard.rank.label)"
-            case .straight: return "蛇(順子)，最大到\(hand.keyCard.rank.label)"
-            case .trio: return "三條\(hand.keyCard.rank.label)"
-            case .pair: return "對子：一對\(hand.keyCard.rank.label)"
+            case .fourOfAKind: return "四條鐵支，4隻\(rankSpoken)帶單隻"
+            case .fullHouse: return "葫蘆，三隻\(rankSpoken)帶一對"
+            case .flush: return "同花，\(describeSuit(hand.keyCard.suit, language: language))，最大\(rankSpoken)"
+            case .straight: return "蛇，最大到\(rankSpoken)"
+            case .trio: return "三條\(rankSpoken)"
+            case .pair: return "對子：一對\(rankSpoken)"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         case .mandarin:
             switch hand.category {
             case .straightFlush: return "同花顺，最大\(describeCard(hand.keyCard, language: language))"
-            case .fourOfAKind: return "铁支四条，4张\(hand.keyCard.rank.label)带单张"
-            case .fullHouse: return "葫芦，三张\(hand.keyCard.rank.label)带一对"
-            case .flush: return "同花，\(describeSuit(hand.keyCard.suit, language: language))，最大\(hand.keyCard.rank.label)"
-            case .straight: return "顺子，最大到\(hand.keyCard.rank.label)"
-            case .trio: return "三条\(hand.keyCard.rank.label)"
-            case .pair: return "对子：对\(hand.keyCard.rank.label)"
+            case .fourOfAKind: return "铁支四条，4张\(rankSpoken)带单张"
+            case .fullHouse: return "葫芦，三张\(rankSpoken)带一对"
+            case .flush: return "同花，\(describeSuit(hand.keyCard.suit, language: language))，最大\(rankSpoken)"
+            case .straight: return "顺子，最大到\(rankSpoken)"
+            case .trio: return "三条\(rankSpoken)"
+            case .pair: return "对子：对\(rankSpoken)"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         case .english:
             switch hand.category {
             case .straightFlush: return "Straight Flush, high card \(describeCard(hand.keyCard, language: language))"
-            case .fourOfAKind: return "Four of a kind \(hand.keyCard.rank.label)s"
-            case .fullHouse: return "Full House with \(hand.keyCard.rank.label)s"
-            case .flush: return "Flush in \(hand.keyCard.suit.rawValue), high \(hand.keyCard.rank.label)"
-            case .straight: return "Straight up to \(hand.keyCard.rank.label)"
-            case .trio: return "Three \(hand.keyCard.rank.label)s"
-            case .pair: return "Pair of \(hand.keyCard.rank.label)s"
+            case .fourOfAKind: return "Four of a kind \(rankSpoken)s"
+            case .fullHouse: return "Full House with \(rankSpoken)s"
+            case .flush: return "Flush in \(describeSuit(hand.keyCard.suit, language: language)), high \(rankSpoken)"
+            case .straight: return "Straight up to \(rankSpoken)"
+            case .trio: return "Three \(rankSpoken)s"
+            case .pair: return "Pair of \(rankSpoken)s"
             case .single: return describeCard(hand.keyCard, language: language)
             }
         }
     }
     
     public static func describeCard(_ card: PlayingCard, language: VoiceLanguage) -> String {
-        if card.rank == .redJoker {
-            return (language == .english) ? "Red Joker" : "大王"
-        }
-        if card.rank == .blackJoker {
-            return (language == .english) ? "Black Joker" : (language == .cantonese ? "細王" : "小王")
+        if card.isJoker {
+            return card.rank.spokenName(for: language)
         }
         let suitStr = describeSuit(card.suit, language: language)
-        return "\(suitStr)\(card.rank.label)"
+        if language == .english {
+            return "\(suitStr) \(card.rank.spokenName(for: language))"
+        } else {
+            return "\(suitStr)\(card.rank.spokenName(for: language))"
+        }
     }
     
     public static func describeSuit(_ suit: CardSuit, language: VoiceLanguage) -> String {

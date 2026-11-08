@@ -9,10 +9,8 @@ import Accelerate
  *
  * Implements:
  * 1. Center crop and bilinear scaling to 640x640.
- * 2. CIColorControls (contrast: 1.30, brightness: 0.04).
- * 3. CIUnsharpMask (radius: 2.5, intensity: 0.85).
- * 4. Rendering directly to normalized [0.0, 1.0] Float32 RGB tensor data.
- * 5. Providing RGBA8 byte buffer for Layer-2 Joker Chroma resolution.
+ * 2. Rendering directly to normalized [0.0, 1.0] Float32 RGB tensor data.
+ * 3. Providing RGBA8 byte buffer for Layer-2 Joker Chroma resolution.
  */
 public class CoreImagePreprocessor {
     public let targetWidth: Int = 640
@@ -44,6 +42,7 @@ public class CoreImagePreprocessor {
         let srcWidth = CGFloat(CVPixelBufferGetWidth(pixelBuffer))
         let srcHeight = CGFloat(CVPixelBufferGetHeight(pixelBuffer))
         let cropSize = min(srcWidth, srcHeight)
+        guard cropSize > 0 else { return nil }
         let cropX = (srcWidth - cropSize) / 2.0
         let cropY = (srcHeight - cropSize) / 2.0
         
@@ -57,27 +56,7 @@ public class CoreImagePreprocessor {
         let scale = CGFloat(targetWidth) / cropSize
         ciImage = ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         
-        // 2. Black-level / Histogram contrast boost via CIColorControls
-        if let colorFilter = CIFilter(name: "CIColorControls") {
-            colorFilter.setValue(ciImage, forKey: kCIInputImageKey)
-            colorFilter.setValue(1.30, forKey: kCIInputContrastKey)
-            colorFilter.setValue(0.04, forKey: kCIInputBrightnessKey)
-            if let output = colorFilter.outputImage {
-                ciImage = output
-            }
-        }
-        
-        // 3. Edge sharpening via CIUnsharpMask
-        if let unsharpFilter = CIFilter(name: "CIUnsharpMask") {
-            unsharpFilter.setValue(ciImage, forKey: kCIInputImageKey)
-            unsharpFilter.setValue(2.5, forKey: kCIInputRadiusKey)
-            unsharpFilter.setValue(0.85, forKey: kCIInputIntensityKey)
-            if let output = unsharpFilter.outputImage {
-                ciImage = output
-            }
-        }
-        
-        // 4. Render GPU output to RGBA byte buffer
+        // 2. Render GPU output to RGBA byte buffer
         var rgbaBytes = [UInt8](repeating: 0, count: targetWidth * targetHeight * 4)
         let bounds = CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
         ciContext.render(
@@ -89,7 +68,7 @@ public class CoreImagePreprocessor {
             colorSpace: colorSpace
         )
         
-        // 5. Convert RGBA UInt8 to RGB Float32 normalized to [0.0, 1.0]
+        // 3. Convert RGBA UInt8 to RGB Float32 normalized to [0.0, 1.0]
         let numPixels = targetWidth * targetHeight
         var floatData = [Float32](repeating: 0.0, count: numPixels * 3)
         

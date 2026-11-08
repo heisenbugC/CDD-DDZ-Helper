@@ -76,7 +76,7 @@ object CardSpeechFormatter {
         if (rockets.isNotEmpty()) {
             comboSections.add(when (lang) {
                 SupportedLang.ZH -> "王炸火箭，大王配小王"
-                SupportedLang.HK -> "王炸火箭，大王配小王"
+                SupportedLang.HK -> "王炸火箭，大鬼配細鬼"
                 SupportedLang.EN -> "Rocket, Red and Black Joker"
             })
         }
@@ -379,6 +379,86 @@ object CardSpeechFormatter {
         }
     }
 
+    fun describeDdzRankZh(rank: DdzRank): String {
+        return when (rank) {
+            DdzRank.JACK -> "勾"
+            DdzRank.QUEEN -> "圈儿"
+            DdzRank.ACE -> "尖儿"
+            DdzRank.BLACK_JOKER -> "小王"
+            DdzRank.RED_JOKER -> "大王"
+            else -> rank.label
+        }
+    }
+
+    fun describeDdzRankHk(rank: DdzRank): String {
+        return when (rank) {
+            DdzRank.JACK -> "积"
+            DdzRank.QUEEN -> "膂"
+            DdzRank.KING -> "倾"
+            DdzRank.ACE -> "烟"
+            DdzRank.BLACK_JOKER -> "细鬼"
+            DdzRank.RED_JOKER -> "大鬼"
+            else -> rank.label
+        }
+    }
+
+    fun describeDdzRankEn(rank: DdzRank): String {
+        return when (rank) {
+            DdzRank.JACK -> "Jack"
+            DdzRank.QUEEN -> "Queen"
+            DdzRank.KING -> "King"
+            DdzRank.ACE -> "Ace"
+            DdzRank.BLACK_JOKER -> "Black Joker"
+            DdzRank.RED_JOKER -> "Red Joker"
+            else -> rank.label
+        }
+    }
+
+    fun describeDdzRank(rank: DdzRank, lang: SupportedLang = SupportedLang.ZH): String {
+        return when (lang) {
+            SupportedLang.ZH -> describeDdzRankZh(rank)
+            SupportedLang.HK -> describeDdzRankHk(rank)
+            SupportedLang.EN -> describeDdzRankEn(rank)
+        }
+    }
+
+    fun describeCddRankZh(rank: Rank): String {
+        return when (rank) {
+            Rank.JACK -> "勾"
+            Rank.QUEEN -> "圈儿"
+            Rank.ACE -> "尖儿"
+            else -> rank.label
+        }
+    }
+
+    fun describeCddRankHk(rank: Rank): String {
+        return when (rank) {
+            Rank.JACK -> "积"
+            Rank.QUEEN -> "膂"
+            Rank.KING -> "倾"
+            Rank.ACE -> "烟"
+            else -> rank.label
+        }
+    }
+
+    fun describeCddRankEn(rank: Rank): String {
+        return when (rank) {
+            Rank.JACK -> "Jack"
+            Rank.QUEEN -> "Queen"
+            Rank.KING -> "King"
+            Rank.ACE -> "Ace"
+            else -> rank.label
+        }
+    }
+
+    fun describeCddRank(rank: Rank, lang: SupportedLang = SupportedLang.ZH): String {
+        return when (lang) {
+            SupportedLang.ZH -> describeCddRankZh(rank)
+            SupportedLang.HK -> describeCddRankHk(rank)
+            SupportedLang.EN -> describeCddRankEn(rank)
+        }
+    }
+
     fun describeDdzHand(hand: DdzHand, lang: SupportedLang = SupportedLang.ZH): String {
         return when (lang) {
             SupportedLang.ZH -> describeDdzHandZh(hand)
@@ -388,13 +468,14 @@ object CardSpeechFormatter {
     }
 
     fun describeDdzHandZh(hand: DdzHand): String {
+        val rankSpoken = describeDdzRankZh(hand.keyCard.rank)
         return when (hand) {
             is DdzRocket -> "王炸火箭，大王配小王"
-            is DdzBomb -> "炸弹4张${hand.keyCard.rank.label}"
+            is DdzBomb -> "炸弹4张$rankSpoken"
             is DdzAirplane -> {
                 val len = hand.trioCount
-                val start = hand.trios.first().rank.label
-                val end = hand.trios.last().rank.label
+                val start = hand.trios.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
+                val end = hand.trios.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
                 if (hand.hasPairWings) {
                     "大飞机带翅膀${hand.cards.size}张：${start}到${end}带${len}对"
                 } else if (hand.hasSingleWings) {
@@ -403,50 +484,67 @@ object CardSpeechFormatter {
                     "纯飞机${hand.cards.size}张：${start}到${end}"
                 }
             }
-            is DdzConsecutivePairs -> "连对共${hand.cards.size}张：${hand.pairCount}连对，${hand.cards.first().rank.label}到${hand.cards.last().rank.label}"
-            is DdzStraight -> "顺子${hand.cards.size}张：${hand.cards.first().rank.label}到${hand.cards.last().rank.label}"
-            is DdzFourWithTwoPairs -> "四带两对8张：4个${hand.keyCard.rank.label}带两对"
-            is DdzFourWithTwoSingles -> "四带二6张：4个${hand.keyCard.rank.label}带两单"
-            is DdzTrioWithPair -> "三带二5张：三张${hand.keyCard.rank.label}带一对"
-            is DdzTrioWithSingle -> "三带一4张：三张${hand.keyCard.rank.label}带单张"
-            is DdzTrio -> "三条3张：三张${hand.keyCard.rank.label}"
-            is DdzPair -> "对子：对${hand.keyCard.rank.label}"
+            is DdzConsecutivePairs -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
+                "连对共${hand.cards.size}张：${hand.pairCount}连对，${start}到${end}"
+            }
+            is DdzStraight -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
+                "顺子${hand.cards.size}张：${start}到${end}"
+            }
+            is DdzFourWithTwoPairs -> "四带两对8张：4张$rankSpoken带两对"
+            is DdzFourWithTwoSingles -> "四带二6张：4张$rankSpoken带两单"
+            is DdzTrioWithPair -> "三带二5张：三张$rankSpoken带一对"
+            is DdzTrioWithSingle -> "三带一4张：三张$rankSpoken带单张"
+            is DdzTrio -> "三条3张：三张$rankSpoken"
+            is DdzPair -> "对子：对$rankSpoken"
             is DdzSingle -> when (hand.keyCard.rank) {
                 DdzRank.BLACK_JOKER -> "单张小王"
                 DdzRank.RED_JOKER -> "单张大王"
-                else -> "单张${hand.keyCard.rank.label}"
+                else -> "单张$rankSpoken"
             }
         }
     }
 
     fun describeDdzHandHk(hand: DdzHand): String {
+        val rankSpoken = describeDdzRankHk(hand.keyCard.rank)
         return when (hand) {
-            is DdzRocket -> "王炸火箭，大王配小王"
-            is DdzBomb -> "炸彈4張${hand.keyCard.rank.label}"
+            is DdzRocket -> "王炸火箭，大鬼配細鬼"
+            is DdzBomb -> "炸彈4隻$rankSpoken"
             is DdzAirplane -> {
                 val len = hand.trioCount
-                val start = hand.trios.first().rank.label
-                val end = hand.trios.last().rank.label
+                val start = hand.trios.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
+                val end = hand.trios.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
                 if (hand.hasPairWings) {
-                    "大飛機帶對子${hand.cards.size}張：${start}到${end}帶${len}對"
+                    "大飛機帶翅膀${hand.cards.size}張：${start}到${end}帶${len}對"
                 } else if (hand.hasSingleWings) {
                     "大飛機帶單牌${hand.cards.size}張：${start}到${end}帶${len}單"
                 } else {
                     "純飛機${hand.cards.size}張：${start}到${end}"
                 }
             }
-            is DdzConsecutivePairs -> "連對共${hand.cards.size}張：${hand.pairCount}連對，${hand.cards.first().rank.label}到${hand.cards.last().rank.label}"
-            is DdzStraight -> "順子${hand.cards.size}張：${hand.cards.first().rank.label}到${hand.cards.last().rank.label}"
-            is DdzFourWithTwoPairs -> "四帶兩對8張：4隻${hand.keyCard.rank.label}帶兩對"
-            is DdzFourWithTwoSingles -> "四帶二6張：4隻${hand.keyCard.rank.label}帶兩單"
-            is DdzTrioWithPair -> "三帶二5張：三隻${hand.keyCard.rank.label}帶一對"
-            is DdzTrioWithSingle -> "三帶一4張：三隻${hand.keyCard.rank.label}帶單隻"
-            is DdzTrio -> "三條3張：三隻${hand.keyCard.rank.label}"
-            is DdzPair -> "對子：一對${hand.keyCard.rank.label}"
+            is DdzConsecutivePairs -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
+                "連對共${hand.cards.size}張：${hand.pairCount}連對，${start}到${end}"
+            }
+            is DdzStraight -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
+                "順子${hand.cards.size}張：${start}到${end}"
+            }
+            is DdzFourWithTwoPairs -> "四帶兩對8張：4隻$rankSpoken帶兩對"
+            is DdzFourWithTwoSingles -> "四帶二6張：4隻$rankSpoken帶兩隻"
+            is DdzTrioWithPair -> "三帶二5張：三隻$rankSpoken帶一對"
+            is DdzTrioWithSingle -> "三帶一4張：三隻$rankSpoken帶單隻"
+            is DdzTrio -> "三條3張：三隻$rankSpoken"
+            is DdzPair -> "對子：一對$rankSpoken"
             is DdzSingle -> when (hand.keyCard.rank) {
-                DdzRank.BLACK_JOKER -> "單隻小王"
-                DdzRank.RED_JOKER -> "單隻大王"
-                else -> "單隻${hand.keyCard.rank.label}"
+                DdzRank.BLACK_JOKER -> "單隻細鬼"
+                DdzRank.RED_JOKER -> "單隻大鬼"
+                else -> "單隻$rankSpoken"
             }
         }
     }
@@ -465,8 +563,16 @@ object CardSpeechFormatter {
                     "Airplane ${hand.cards.size} cards: $len trios"
                 }
             }
-            is DdzConsecutivePairs -> "Consecutive pairs ${hand.cards.size} cards: ${hand.cards.first().rank.label} through ${hand.cards.last().rank.label}"
-            is DdzStraight -> "Straight ${hand.cards.size} cards: ${hand.cards.first().rank.label} through ${hand.cards.last().rank.label}"
+            is DdzConsecutivePairs -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.label ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.label ?: ""
+                return "Consecutive pairs ${hand.cards.size} cards: $start through $end"
+            }
+            is DdzStraight -> {
+                val start = hand.cards.minByOrNull { it.rank.weight }?.rank?.label ?: ""
+                val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.label ?: ""
+                return "Straight ${hand.cards.size} cards: $start through $end"
+            }
             is DdzFourWithTwoPairs -> "Four of a kind ${hand.keyCard.rank.label}s with two pairs"
             is DdzFourWithTwoSingles -> "Four of a kind ${hand.keyCard.rank.label}s with two singles"
             is DdzTrioWithPair -> "Trio of ${hand.keyCard.rank.label}s with pair"
@@ -490,29 +596,31 @@ object CardSpeechFormatter {
     }
 
     fun describeCddHandZh(hand: CddHand): String {
+        val rankSpoken = describeCddRankZh(hand.keyCard.rank)
         return when (hand) {
             is StraightFlush -> "同花顺，最大${describeCddCardZh(hand.keyCard)}"
-            is FourOfAKind -> "铁支四条，4张${hand.keyCard.rank.label}带单张"
-            is FullHouse -> "葫芦，三张${hand.keyCard.rank.label}带一对"
-            is Flush -> "同花，${describeSuitZh(hand.keyCard.suit)}，最大${hand.keyCard.rank.label}"
-            is Straight -> "顺子，最大到${hand.keyCard.rank.label}"
-            is Trio -> "三条${hand.keyCard.rank.label}"
-            is Pair -> "对子：对${hand.keyCard.rank.label}"
-            is Single -> "单张${describeCddCardZh(hand.keyCard)}"
+            is FourOfAKind -> "铁支四条，4张${rankSpoken}带单张"
+            is FullHouse -> "葫芦，三张${rankSpoken}带一对"
+            is Flush -> "同花，${describeSuitZh(hand.keyCard.suit)}，最大${rankSpoken}"
+            is Straight -> "顺子，最大到${rankSpoken}"
+            is Trio -> "三条${rankSpoken}"
+            is Pair -> "对子：对${rankSpoken}"
+            is Single -> describeCddCardZh(hand.keyCard)
             else -> "手牌"
         }
     }
 
     fun describeCddHandHk(hand: CddHand): String {
+        val rankSpoken = describeCddRankHk(hand.keyCard.rank)
         return when (hand) {
             is StraightFlush -> "同花順，最大${describeCddCardHk(hand.keyCard)}"
-            is FourOfAKind -> "四條鐵支，4隻${hand.keyCard.rank.label}帶單隻"
-            is FullHouse -> "葫蘆(巨)，三隻${hand.keyCard.rank.label}帶一對"
-            is Flush -> "同花，${describeSuitHk(hand.keyCard.suit)}，最大${hand.keyCard.rank.label}"
-            is Straight -> "蛇(順子)，最大到${hand.keyCard.rank.label}"
-            is Trio -> "三條${hand.keyCard.rank.label}"
-            is Pair -> "對子：一對${hand.keyCard.rank.label}"
-            is Single -> "單隻${describeCddCardHk(hand.keyCard)}"
+            is FourOfAKind -> "四條鐵支，4隻${rankSpoken}帶單隻"
+            is FullHouse -> "葫蘆，三隻${rankSpoken}帶一對"
+            is Flush -> "同花，${describeSuitHk(hand.keyCard.suit)}，最大${rankSpoken}"
+            is Straight -> "蛇，最大到${rankSpoken}"
+            is Trio -> "三條${rankSpoken}"
+            is Pair -> "對子：一對${rankSpoken}"
+            is Single -> describeCddCardHk(hand.keyCard)
             else -> "手牌"
         }
     }
@@ -543,15 +651,15 @@ object CardSpeechFormatter {
         return when (card.rank) {
             DdzRank.RED_JOKER -> "大王"
             DdzRank.BLACK_JOKER -> "小王"
-            else -> "${describeDdzSuitZh(card.suit)}${card.rank.label}"
+            else -> "${describeDdzSuitZh(card.suit)}${describeDdzRankZh(card.rank)}"
         }
     }
 
     fun describeDdzCardHk(card: DdzCard): String {
         return when (card.rank) {
-            DdzRank.RED_JOKER -> "大王"
-            DdzRank.BLACK_JOKER -> "細王"
-            else -> "${describeDdzSuitHk(card.suit)}${card.rank.label}"
+            DdzRank.RED_JOKER -> "大鬼"
+            DdzRank.BLACK_JOKER -> "细鬼"
+            else -> "${describeDdzSuitHk(card.suit)}${describeDdzRankHk(card.rank)}"
         }
     }
 
@@ -571,8 +679,8 @@ object CardSpeechFormatter {
         }
     }
 
-    fun describeCddCardZh(card: Card): String = "${describeSuitZh(card.suit)}${card.rank.label}"
-    fun describeCddCardHk(card: Card): String = "${describeSuitHk(card.suit)}${card.rank.label}"
+    fun describeCddCardZh(card: Card): String = "${describeSuitZh(card.suit)}${describeCddRankZh(card.rank)}"
+    fun describeCddCardHk(card: Card): String = "${describeSuitHk(card.suit)}${describeCddRankHk(card.rank)}"
     fun describeCddCardEn(card: Card): String = "${card.rank.label} of ${card.suit.name.lowercase()}s"
 
     fun describeSuitZh(suit: Suit): String {

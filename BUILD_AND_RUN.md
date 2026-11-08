@@ -39,61 +39,80 @@ This separation ensures **future compatibility with AGP 9.0.0+** while supportin
 ### Build All Targets
 
 ```bash
-# Clean build
-.\gradlew.bat clean build
+# macOS / Linux
+./gradlew clean build
 
-# Build without running tests (faster)
-.\gradlew.bat clean assemble
+# Windows
+.\gradlew.bat clean build
 ```
 
 ### Android Application
 
 **Build Debug APK:**
 ```bash
-.\gradlew.bat :androidApp:assembleDebug
+./gradlew :androidApp:assembleDebug     # macOS/Linux
+.\gradlew.bat :androidApp:assembleDebug # Windows
 ```
 
 **Build Release APK:**
 ```bash
-.\gradlew.bat :androidApp:assembleRelease
+./gradlew :androidApp:assembleRelease     # macOS/Linux
+.\gradlew.bat :androidApp:assembleRelease # Windows
 ```
 
 **Install and run on device/emulator:**
 ```bash
-.\gradlew.bat :androidApp:installDebug
+./gradlew :androidApp:installDebug     # macOS/Linux
+.\gradlew.bat :androidApp:installDebug # Windows
 ```
 
 ### Desktop (JVM) Application
 
 **Build and run desktop app:**
 ```bash
-.\gradlew.bat :composeApp:run
+./gradlew :composeApp:run
 ```
 
-**Build distribution (Windows/macOS/Linux):**
+### iOS Application (SwiftUI)
+
+#### Option 1: Terminal (CLI)
+You can build, install, and run on the iOS Simulator directly using the helper script:
 ```bash
-.\gradlew.bat :composeApp:packageReleaseDistributionForCurrentOS
+./scripts/run_ios.sh
 ```
-
-### Web Application - Wasm Target (Recommended)
-
-**Run in development mode:**
+Or specify a specific simulator:
 ```bash
-.\gradlew.bat :composeApp:wasmJsBrowserDevelopmentRun
+./scripts/run_ios.sh "iPhone 16 Pro"
 ```
 
-This opens the app in your default browser at `http://localhost:8080`
-
-### Web Application - JavaScript Target
-
-**Run in development mode:**
+Or run the manual commands:
 ```bash
-.\gradlew.bat :composeApp:jsBrowserDevelopmentRun
+# 1. Boot simulator & open Simulator app
+open -a Simulator
+xcrun simctl boot "iPhone 16 Pro" 2>/dev/null || true
+
+# 2. Build for simulator
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme iosApp \
+  -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  -derivedDataPath build/iosDerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+
+# 3. Install & launch
+xcrun simctl install booted build/iosDerivedData/Build/Products/Debug-iphonesimulator/cdd-ddz-helper.app
+xcrun simctl launch booted com.desmond.cddddz
 ```
 
-### iOS Application
+#### Option 2: Xcode GUI
+Open `iosApp/iosApp.xcodeproj` in Xcode:
+1. Select the `iosApp` scheme.
+2. Select an iOS Simulator (e.g. iPhone 16 Pro) or your connected physical iPhone.
+3. In **Signing & Capabilities**, ensure your Apple Developer account / Team is selected if running on a real device.
+4. Press **⌘R** (or click the Run button) to build and run.
 
-Open `/iosApp/iosApp.xcodeproj` in Xcode and run from there.
+> **Note:** The iOS app is written natively in SwiftUI (`iosApp/iosApp`) and does not depend on the Gradle Kotlin framework compilation step. `OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED = YES` is configured in `Config.xcconfig` so that builds succeed cleanly without invoking Gradle.
 
 ## Project Configuration
 

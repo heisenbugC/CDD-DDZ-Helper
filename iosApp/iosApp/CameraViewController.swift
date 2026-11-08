@@ -14,17 +14,49 @@ public class CameraViewController: UIViewController, AVCaptureVideoDataOutputSam
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private var previewLayer: AVCaptureVideoPreviewLayer?
     private let queue = DispatchQueue(label: "camera.frame.pipeline.queue", qos: .userInitiated)
+    private var isConfigured = false
     
     public override func viewDidLoad() {
         super.viewDidLoad()
-        setupCamera()
+        view.backgroundColor = .black
+        checkCameraPermissionAndSetup()
+    }
+    
+    private func checkCameraPermissionAndSetup() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            setupCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self?.setupCamera()
+                    } else {
+                        print("CameraViewController: Camera access denied by user")
+                    }
+                }
+            }
+        case .denied, .restricted:
+            print("CameraViewController: Camera access is restricted or denied")
+        @unknown default:
+            break
+        }
     }
     
     private func setupCamera() {
+        guard !isConfigured else { return }
+        
         captureSession.beginConfiguration()
         captureSession.sessionPreset = .hd1280x720
         
-        let deviceDiscoverySession = AVCaptureDeviceDiscoverySession(
+        // iOS 18+: Tell AVCaptureSession to share the app's AVAudioSession instead of
+        // creating its own. This prevents the camera session from overriding the
+        // .playAndRecord + .mixWithOthers category set by AudioSessionCoordinator,
+        // which would otherwise break AVAudioEngine microphone access.
+        captureSession.usesApplicationAudioSession = true
+        captureSession.automaticallyConfiguresApplicationAudioSession = false
+        
+        let deviceDiscoverySession = AVCaptureDevice.DiscoverySession(
             deviceTypes: [.builtInWideAngleCamera],
             mediaType: .video,
             position: .back
@@ -32,7 +64,7 @@ public class CameraViewController: UIViewController, AVCaptureVideoDataOutputSam
         
         guard let videoDevice = deviceDiscoverySession.devices.first,
               let videoDeviceInput = try? AVCaptureDeviceInput(device: videoDevice) else {
-            print("Failed to access rear wide-angle camera")
+            print("CameraViewController: Failed to access rear wide-angle camera")
             captureSession.commitConfiguration()
             return
         }
@@ -59,19 +91,36 @@ public class CameraViewController: UIViewController, AVCaptureVideoDataOutputSam
         
         let layer = AVCaptureVideoPreviewLayer(session: captureSession)
         layer.videoGravity = .resizeAspectFill
+        if let connection = layer.connection, connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
         view.layer.addSublayer(layer)
         self.previewLayer = layer
         
         captureSession.commitConfiguration()
+        isConfigured = true
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.captureSession.startRunning()
         }
     }
     
+    public override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        resumeCamera()
+    }
+    
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        pauseCamera()
+    }
+    
     public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer?.frame = view.bounds
+        if let connection = previewLayer?.connection, connection.isVideoOrientationSupported {
+            connection.videoOrientation = .portrait
+        }
     }
     
     public func captureOutput(

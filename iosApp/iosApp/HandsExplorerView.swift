@@ -9,6 +9,7 @@ public struct HandsExplorerView: View {
     public let gameMode: GameMode
     public let ddzRole: DdzRole
     public let cddVariation: CddVariation
+    public let voiceLanguage: VoiceLanguage
     public let onSelectHand: ((_ handDescription: String) -> Void)?
     
     @Environment(\.presentationMode) var presentationMode
@@ -19,12 +20,14 @@ public struct HandsExplorerView: View {
         gameMode: GameMode = .douDiZhu,
         ddzRole: DdzRole = .peasant,
         cddVariation: CddVariation = .mainland,
+        voiceLanguage: VoiceLanguage = AppSettings.shared.voiceLanguage,
         onSelectHand: ((String) -> Void)? = nil
     ) {
         self.cards = cards
         self.gameMode = gameMode
         self.ddzRole = ddzRole
         self.cddVariation = cddVariation
+        self.voiceLanguage = voiceLanguage
         self.onSelectHand = onSelectHand
     }
     
@@ -136,7 +139,8 @@ public struct HandsExplorerView: View {
                         .padding(.vertical, 4)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            onSelectHand?(hand.descriptionText)
+                            let spokenText = CardSpeechFormatter.describeDdzHand(hand, language: voiceLanguage)
+                            onSelectHand?(spokenText)
                             presentationMode.wrappedValue.dismiss()
                         }
                     }
@@ -209,7 +213,8 @@ public struct HandsExplorerView: View {
                         .padding(.vertical, 4)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            onSelectHand?(hand.descriptionText)
+                            let spokenText = CardSpeechFormatter.describeCddHand(hand, language: voiceLanguage)
+                            onSelectHand?(spokenText)
                             presentationMode.wrappedValue.dismiss()
                         }
                     }

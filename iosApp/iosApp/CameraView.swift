@@ -17,5 +17,7 @@ public struct CameraView: UIViewControllerRepresentable {
         return controller
     }
     
-    public func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {}
+    public func updateUIViewController(_ uiViewController: CameraViewController, context: Context) {
+        uiViewController.frameHandler = frameHandler
+    }
 }

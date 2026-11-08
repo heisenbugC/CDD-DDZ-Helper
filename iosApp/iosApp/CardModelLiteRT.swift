@@ -31,6 +31,8 @@ public class CardModelLiteRT: ObservableObject {
     
     private let preprocessor = CoreImagePreprocessor()
     private let processingQueue = DispatchQueue(label: "card.detection.inference.queue", qos: .userInitiated)
+    private let stateLock = NSLock()
+    private var isInferringFrame = false
     
     #if canImport(TensorFlowLite)
     private var interpreter: Interpreter?
@@ -56,6 +58,8 @@ public class CardModelLiteRT: ObservableObject {
         } catch {
             print("CardModelLiteRT: Failed to initialize LiteRT interpreter: \(error)")
         }
+        #else
+        print("CardModelLiteRT: TensorFlowLite module cannot be imported")
         #endif
     }
     
@@ -63,31 +67,53 @@ public class CardModelLiteRT: ObservableObject {
      * Processes live CVPixelBuffer from camera frame.
      */
     public func processFrame(_ pixelBuffer: CVPixelBuffer) {
+        stateLock.lock()
+        if isInferringFrame {
+            stateLock.unlock()
+            return
+        }
+        isInferringFrame = true
+        stateLock.unlock()
+        
+        DispatchQueue.main.async {
+            self.isInferring = true
+        }
+        
         processingQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            guard let preprocessed = self.preprocessor.preprocess(pixelBuffer: pixelBuffer) else {
-                return
-            }
-            
-            let detections = self.runInference(inputData: preprocessed.modelInputData, rgbaBytes: preprocessed.rgbaBytes)
-            
-            // Map detected boxes to PlayingCards sorted in descending rank order
-            var cards: [PlayingCard] = []
-            for det in detections {
-                if let card = PlayingCard.fromClassId(det.classId) {
-                    cards.append(card)
+            autoreleasepool {
+                guard let self = self else { return }
+                defer {
+                    self.stateLock.lock()
+                    self.isInferringFrame = false
+                    self.stateLock.unlock()
+                    DispatchQueue.main.async {
+                        self.isInferring = false
+                    }
                 }
-            }
-            cards.sort(by: { $0 > $1 })
-            
-            // Compute aiming centering score Q in [0.0, 1.0]
-            let score = self.computeCenteringScore(detections: detections)
-            
-            DispatchQueue.main.async {
-                self.detectedCards = cards
-                self.detectedBoxes = detections
-                self.centeringScore = score
+                
+                guard let preprocessed = self.preprocessor.preprocess(pixelBuffer: pixelBuffer) else {
+                    return
+                }
+                
+                let detections = self.runInference(inputData: preprocessed.modelInputData, rgbaBytes: preprocessed.rgbaBytes)
+                
+                // Map detected boxes to PlayingCards sorted in descending rank order
+                var cards: [PlayingCard] = []
+                for det in detections {
+                    if let card = PlayingCard.fromClassId(det.classId) {
+                        cards.append(card)
+                    }
+                }
+                cards.sort(by: { $0 > $1 })
+                
+                // Compute aiming centering score Q in [0.0, 1.0]
+                let score = self.computeCenteringScore(detections: detections)
+                
+                DispatchQueue.main.async {
+                    self.detectedCards = cards
+                    self.detectedBoxes = detections
+                    self.centeringScore = score
+                }
             }
         }
     }
@@ -152,8 +178,8 @@ public class CardModelLiteRT: ObservableObject {
             let pRedJoker = tensorFloats[(4 + 53) * numAnchors + i]
             
             let isJokerCandidate = (maxClassId == 52 || maxClassId == 53 || pBlackJoker >= 0.25 || pRedJoker >= 0.25)
-            // Adaptive candidate threshold: Jokers in dense hands show ~15-30% of corner index
-            let effectiveThreshold: Float = isJokerCandidate ? 0.28 : 0.45
+            // Adaptive candidate threshold: regular cards >= 0.35, Jokers in dense hands >= 0.25
+            let effectiveThreshold: Float = isJokerCandidate ? 0.25 : 0.35
             
             if maxClassConf >= effectiveThreshold {
                 let cx = tensorFloats[0 * numAnchors + i]

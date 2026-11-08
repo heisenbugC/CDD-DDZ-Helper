@@ -9,11 +9,13 @@ import AVFoundation
  * 3. Fallback: If native Apple voice is not installed or unavailable, gracefully falls back
  *    to Google Cloud TTS REST endpoint or system fallback synthesizer.
  */
-public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     public static let shared = NativeSpeechEngine()
     
     private let synthesizer = AVSpeechSynthesizer()
     private var audioPlayer: AVAudioPlayer?
+    private var speakingWatchdogItem: DispatchWorkItem?
+    private var currentUtterance: AVSpeechUtterance?
     
     @Published public var isSpeaking: Bool = false
     @Published public var lastSpokenText: String = ""
@@ -22,17 +24,9 @@ public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizer
     public override init() {
         super.init()
         synthesizer.delegate = self
-        setupAudioSession()
-    }
-    
-    private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            print("NativeSpeechEngine: Failed to activate AVAudioSession: \(error)")
-        }
+        // NOTE: AVAudioSession is configured globally by AudioSessionCoordinator.
+        // NativeSpeechEngine must NOT override the session category — doing so would
+        // break the microphone pipeline (AVCaptureSession + SpeechRecognitionService).
     }
     
     /**
@@ -47,16 +41,33 @@ public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizer
         completion: (() -> Void)? = nil
     ) {
         // Stop any current utterance
+        currentUtterance = nil
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
         audioPlayer?.stop()
+        
+        // 立即通知语音识别暂停收音，防止自激
+        SpeechRecognitionService.shared.pauseListeningForTTS()
         
         DispatchQueue.main.async {
             self.lastSpokenText = text
             self.isSpeaking = true
             self.usedFallback = false
         }
+        
+        // 启动 Watchdog 看门狗（估算朗读时长 + 1.5s 安全余量，上限 15s），防止委托丢失造成麦克风永久静音
+        let charCount = Double(text.count)
+        let safeRate = Double(rate > 0 ? rate : 0.52)
+        let estimatedSeconds = min(15.0, max(2.0, (charCount * 0.35) / (safeRate * 1.5))) + 1.5
+        
+        speakingWatchdogItem?.cancel()
+        let watchdog = DispatchWorkItem { [weak self] in
+            print("NativeSpeechEngine: ⚠️ Watchdog 触发，强制恢复麦克风收音")
+            self?.finishSpeaking()
+        }
+        speakingWatchdogItem = watchdog
+        DispatchQueue.main.asyncAfter(deadline: .now() + estimatedSeconds, execute: watchdog)
         
         // 1. Check for Apple Native Voice availability
         let targetLocale = language.localeIdentifier
@@ -74,6 +85,7 @@ public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizer
             utterance.preUtteranceDelay = 0.05
             utterance.postUtteranceDelay = 0.05
             
+            currentUtterance = utterance
             synthesizer.speak(utterance)
         } else {
             // 2. Fallback to Google Cloud TTS REST API if Apple native voice is completely absent
@@ -84,26 +96,40 @@ public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizer
     }
     
     public func stop() {
+        currentUtterance = nil
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
         audioPlayer?.stop()
+        finishSpeaking()
+    }
+    
+    private func finishSpeaking() {
         DispatchQueue.main.async {
+            guard self.isSpeaking else { return }
+            self.speakingWatchdogItem?.cancel()
+            self.speakingWatchdogItem = nil
             self.isSpeaking = false
+            SpeechRecognitionService.shared.resumeListeningAfterTTS(delay: 0.5)
         }
     }
     
     // MARK: - AVSpeechSynthesizerDelegate
     public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
-            self.isSpeaking = false
-        }
+        guard utterance == currentUtterance else { return }
+        currentUtterance = nil
+        finishSpeaking()
     }
     
     public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async {
-            self.isSpeaking = false
-        }
+        guard utterance == currentUtterance else { return }
+        currentUtterance = nil
+        finishSpeaking()
+    }
+    
+    // MARK: - AVAudioPlayerDelegate
+    public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        finishSpeaking()
     }
     
     // MARK: - Google TTS Fallback
@@ -145,6 +171,7 @@ public class NativeSpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizer
             DispatchQueue.main.async {
                 do {
                     self.audioPlayer = try AVAudioPlayer(data: data)
+                    self.audioPlayer?.delegate = self
                     self.audioPlayer?.play()
                 } catch {
                     self.fallbackToDefaultAppleVoice(text: text)

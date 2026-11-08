@@ -332,9 +332,6 @@ public struct SettingsView: View {
             self.isTestingVoiceInput = false
             self.testVoiceResult = result
             self.testVoiceCommand = cmd
-            
-            // Play confirmation chime
-            AudioServicesPlaySystemSound(1057)
         }
     }
     

@@ -25,19 +25,8 @@ public class AudioHapticGuidance: ObservableObject {
     @Published public var isRunning: BooleanLiteralType = false
     
     public init() {
-        setupAudioSession()
         setupAudioEngine()
         setupHaptics()
-    }
-    
-    private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            print("Failed to configure AVAudioSession: \(error)")
-        }
     }
     
     private func setupAudioEngine() {
