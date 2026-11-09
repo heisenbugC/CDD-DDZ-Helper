@@ -471,7 +471,7 @@ object CardSpeechFormatter {
         val rankSpoken = describeDdzRankZh(hand.keyCard.rank)
         return when (hand) {
             is DdzRocket -> "王炸火箭，大王配小王"
-            is DdzBomb -> "炸弹4张$rankSpoken"
+            is DdzBomb -> "炸弹4张${rankSpoken}"
             is DdzAirplane -> {
                 val len = hand.trioCount
                 val start = hand.trios.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
@@ -494,16 +494,16 @@ object CardSpeechFormatter {
                 val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankZh(it) } ?: ""
                 "顺子${hand.cards.size}张：${start}到${end}"
             }
-            is DdzFourWithTwoPairs -> "四带两对8张：4张$rankSpoken带两对"
-            is DdzFourWithTwoSingles -> "四带二6张：4张$rankSpoken带两单"
-            is DdzTrioWithPair -> "三带二5张：三张$rankSpoken带一对"
-            is DdzTrioWithSingle -> "三带一4张：三张$rankSpoken带单张"
-            is DdzTrio -> "三条3张：三张$rankSpoken"
-            is DdzPair -> "对子：对$rankSpoken"
+            is DdzFourWithTwoPairs -> "四带两对8张：4张${rankSpoken}带两对"
+            is DdzFourWithTwoSingles -> "四带二6张：4张${rankSpoken}带两单"
+            is DdzTrioWithPair -> "三带二5张：三张${rankSpoken}带一对"
+            is DdzTrioWithSingle -> "三带一4张：三张${rankSpoken}带单张"
+            is DdzTrio -> "三条3张：三张${rankSpoken}"
+            is DdzPair -> "对子：对${rankSpoken}"
             is DdzSingle -> when (hand.keyCard.rank) {
                 DdzRank.BLACK_JOKER -> "单张小王"
                 DdzRank.RED_JOKER -> "单张大王"
-                else -> "单张$rankSpoken"
+                else -> "单张${rankSpoken}"
             }
         }
     }
@@ -512,7 +512,7 @@ object CardSpeechFormatter {
         val rankSpoken = describeDdzRankHk(hand.keyCard.rank)
         return when (hand) {
             is DdzRocket -> "王炸火箭，大鬼配細鬼"
-            is DdzBomb -> "炸彈4隻$rankSpoken"
+            is DdzBomb -> "炸彈4隻${rankSpoken}"
             is DdzAirplane -> {
                 val len = hand.trioCount
                 val start = hand.trios.minByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
@@ -535,16 +535,16 @@ object CardSpeechFormatter {
                 val end = hand.cards.maxByOrNull { it.rank.weight }?.rank?.let { describeDdzRankHk(it) } ?: ""
                 "順子${hand.cards.size}張：${start}到${end}"
             }
-            is DdzFourWithTwoPairs -> "四帶兩對8張：4隻$rankSpoken帶兩對"
-            is DdzFourWithTwoSingles -> "四帶二6張：4隻$rankSpoken帶兩隻"
-            is DdzTrioWithPair -> "三帶二5張：三隻$rankSpoken帶一對"
-            is DdzTrioWithSingle -> "三帶一4張：三隻$rankSpoken帶單隻"
-            is DdzTrio -> "三條3張：三隻$rankSpoken"
-            is DdzPair -> "對子：一對$rankSpoken"
+            is DdzFourWithTwoPairs -> "四帶兩對8張：4隻${rankSpoken}帶兩對"
+            is DdzFourWithTwoSingles -> "四帶二6張：4隻${rankSpoken}帶兩隻"
+            is DdzTrioWithPair -> "三帶二5張：三隻${rankSpoken}帶一對"
+            is DdzTrioWithSingle -> "三帶一4張：三隻${rankSpoken}帶單隻"
+            is DdzTrio -> "三條3張：三隻${rankSpoken}"
+            is DdzPair -> "對子：一對${rankSpoken}"
             is DdzSingle -> when (hand.keyCard.rank) {
                 DdzRank.BLACK_JOKER -> "單隻細鬼"
                 DdzRank.RED_JOKER -> "單隻大鬼"
-                else -> "單隻$rankSpoken"
+                else -> "單隻${rankSpoken}"
             }
         }
     }

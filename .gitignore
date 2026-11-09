@@ -1,24 +1,125 @@
+# ==============================================================================
+# CDD & DDZ Helper - Comprehensive Git Ignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. SENSITIVE DATA, KEYS & SECRETS (HIGH PRIORITY)
+# ------------------------------------------------------------------------------
+# Environment Variables & Secret Files
+.env
+.env.*
+!.env.example
+!.env.template
+*.env
+.envrc
+.flaskenv
+
+# Android Keystores, Signing Keys & Properties
+*.jks
+*.keystore
+*.bks
+debug.keystore
+release.keystore
+upload-keystore.jks
+local.properties
+key.properties
+signing.properties
+secrets.properties
+secure.properties
+
+# Apple / iOS Certificates, Keys & Provisioning Profiles
+*.p8
+*.p12
+*.cer
+*.crt
+*.der
+*.key
+*.pem
+*.mobileprovision
+*.provisionprofile
+*.xcarchive
+*Signing*.xcconfig
+*Private*.xcconfig
+fastlane/Matchfile
+fastlane/Appfile
+
+# Cloud Credentials, Firebase & OAuth Secrets
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+*client_secret*.json
+*credentials*.json
+*token*.json
+firebase-adminsdk*.json
+client_id*.json
+.gcloud/
+.aws/
+
+# SSH Keys & Crypto
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+id_ecdsa
+id_ecdsa.pub
+*.pk8
+
+# ------------------------------------------------------------------------------
+# 2. KOTLIN MULTIPLATFORM & GRADLE BUILDS
+# ------------------------------------------------------------------------------
 *.iml
 .kotlin/
-.gradle
+.gradle/
 .gradle_home/
+build/
 **/build/
-xcuserdata
 !src/**/build/
-local.properties
-.idea/
-.DS_Store
 captures
 .externalNativeBuild
 .cxx
+
+# ------------------------------------------------------------------------------
+# 3. IDE & OPERATING SYSTEM METADATA
+# ------------------------------------------------------------------------------
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ------------------------------------------------------------------------------
+# 4. APPLE / XCODE
+# ------------------------------------------------------------------------------
+xcuserdata/
+*.xcuserstate
+**/xcshareddata/WorkspaceSettings.xcsettings
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/xcshareddata/
 !*.xcodeproj/project.xcworkspace/
 !*.xcworkspace/contents.xcworkspacedata
-**/xcshareddata/WorkspaceSettings.xcsettings
+
+# ------------------------------------------------------------------------------
+# 5. NODE & JAVASCRIPT
+# ------------------------------------------------------------------------------
 node_modules/
+
+# ------------------------------------------------------------------------------
+# 6. PYTHON VIRTUAL ENVIRONMENTS & CACHES
+# ------------------------------------------------------------------------------
 */venv/
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ------------------------------------------------------------------------------
+# 7. MACHINE LEARNING DATASETS, WEIGHTS & ARTIFACTS
+# ------------------------------------------------------------------------------
 weights/
 runs/
 JOKERS-1/
@@ -32,6 +133,13 @@ training/tflite_model_ddz/
 training/yolov5/
 training/yolov9/
 training/batman_cards/
+yolov8s.pt
+yolov8n.pt
+wandb/
+
+# ------------------------------------------------------------------------------
+# 8. SCRATCH SCRIPTS & WORKSPACE METADATA
+# ------------------------------------------------------------------------------
 .test_classes/
 .antigravity/
 .roomodes
@@ -39,6 +147,9 @@ Plan.md
 ARCHITECTURE.md
 TODO.md
 *.txt
+!training/requirements.txt
 *.ps1
 *.bat
-yolov8s.pt
+!gradlew.bat
+!training/run_pipeline.bat
+!training/run_augmentation.bat

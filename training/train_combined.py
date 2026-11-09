@@ -9,7 +9,10 @@ def main():
     # ==========================================
     # --- CONFIGURATION ---
     # Put the Roboflow details of the Jokers dataset you found here!
-    ROBOFLOW_API_KEY = "REDACTED_API_KEY" # Your API key
+    # Set ROBOFLOW_API_KEY in your environment or .env file before running
+    ROBOFLOW_API_KEY = os.environ.get("ROBOFLOW_API_KEY", "")
+    if not ROBOFLOW_API_KEY:
+        print("[WARNING] ROBOFLOW_API_KEY environment variable not set. Please set it before downloading.")
     JOKER_WORKSPACE = "rummy-qmgrc"
     JOKER_PROJECT = "jokers-lr1mz"
     JOKER_VERSION = 1
