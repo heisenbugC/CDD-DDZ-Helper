@@ -24,6 +24,7 @@ upload-keystore.jks
 local.properties
 key.properties
 signing.properties
+keystore.properties
 secrets.properties
 secure.properties
 
@@ -146,6 +147,7 @@ wandb/
 Plan.md
 ARCHITECTURE.md
 TODO.md
+RELEASE_NOTES*.md
 *.txt
 !training/requirements.txt
 *.ps1

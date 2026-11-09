@@ -1,24 +1,16 @@
 # 锄大地 / 斗地主 智能辅助与无障碍助手 (CDD & DDZ Helper)
 
-<p align="center">
-  <img src="iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-180.png" width="96" height="96" alt="CDD DDZ Helper 图标" />
-</p>
+![CDD DDZ Helper 图标](iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-180.png)
 
-<p align="center">
-  <strong>基于端侧计算机视觉与免提非视觉无障碍技术的「锄大地 (Big Two)」与「斗地主」智能算牌助手</strong>
-</p>
+**基于端侧计算机视觉与免提非视觉无障碍技术的「锄大地 (Big Two)」与「斗地主」智能算牌助手**
 
-<p align="center">
-  <a href="README.md"><strong>English</strong></a> | <a href="README_zh.md"><strong>中文说明</strong></a>
-</p>
+[English](README.md) | [中文说明](README_zh.md)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/版本-v0.1.0--beta%20(预发布%20Pre--release)-blue.svg" alt="预发布版本" />
-  <img src="https://img.shields.io/badge/平台-Android%20%7C%20iOS-brightgreen.svg" alt="支持平台" />
-  <img src="https://img.shields.io/badge/Kotlin-Multiplatform%202.3.0-orange.svg" alt="Kotlin Multiplatform" />
-  <img src="https://img.shields.io/badge/Swift-5.9%20%2F%20SwiftUI-purple.svg" alt="SwiftUI" />
-  <img src="https://img.shields.io/badge/模型-YOLOv8s%20(54分类)-red.svg" alt="YOLOv8s" />
-</p>
+![版本](https://img.shields.io/badge/版本-v0.1.0--beta%20(预发布%20Pre--release)-blue.svg)
+![平台](https://img.shields.io/badge/平台-Android%20%7C%20iOS-brightgreen.svg)
+![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform%202.3.0-orange.svg)
+![Swift](https://img.shields.io/badge/Swift-5.9%20%2F%20SwiftUI-purple.svg)
+![模型](https://img.shields.io/badge/模型-YOLOv8s%20(54分类)-red.svg)
 
 ---
 
@@ -27,7 +19,7 @@
 > [!IMPORTANT]
 > **预发布里程碑与分发策略说明**：
 > - **当前发布状态**：本项目目前处于首发**预发布阶段 (Pre-release, `v0.1.0-beta`)**。
-> - **Android 分发形式**：已在 GitHub Releases 中提供打包好的安装文件（`androidApp-debug.apk`），支持在实体 Android 手机上直接下载、安装并进行测试体验。
+> - **Android 分发形式**：已在 GitHub Releases 中提供打包且已完成签名的安装文件（`androidApp-release.apk` 与 `androidApp-debug.apk`），支持在实体 Android 手机上直接下载、安装并进行测试体验。
 > - **iOS 分发策略**：由于苹果生态对应用分发有严格的 App Store 上架及开发者证书签名限制，**iOS 版本暂不提供安装包（不提供 `.ipa`、TestFlight 公测安装或 App Store 下载）**。本项目提供**完整的 iOS 原生源代码、Xcode 工程文件及详尽的本地编译运行指南**。开发者与测试人员可使用 Mac 设备通过 Xcode 将应用编译并部署至 iOS 模拟器或个人 iPhone/iPad 上体验。
 
 ---
@@ -47,7 +39,7 @@
 ### 👁️ 端侧毫秒级扑克牌检测
 - **54 分类 YOLOv8s 深度神经网络**：精准检测 52 张标准扑克牌以及小王（Black Joker / 細鬼）与大王（Red Joker / 大鬼）。
 - **密集扇形手牌数据增强 (In-Hand & Fan Augmentation)**：利用合成 CutMix 与重叠手牌扩增技术（覆盖 5 至 18 张手牌密集遮挡场景），攻克手牌握持时相互遮挡导致的漏检难题。
-- **100% 本地运算与隐私安全**：基于 Google LiteRT / TFLite float32 引擎纯本地推理，无需任何云端连接，绝不上演或存储相机图像。
+- **100% 本地运算与隐私安全**：基于 Google LiteRT / TFLite float32 引擎纯本地推理，无需任何云端连接，绝不上传或存储相机图像。
 
 ### 🛡️ 双层大小王防误判机制 (Two-Layer Joker Safeguard)
 - **攻克痛点**：在暖色光（白炽灯、暖光台灯）环境下，小王纸面常反射偏黄偏橙色光，导致传统神经网络容易将小王误判为大王。
@@ -169,9 +161,9 @@ CDD_DDZ_Helper/
 ### 🤖 Android 编译与安装
 
 #### 1. 直接安装预发布 APK（测试用户首选）
-从本仓库的 [Releases](https://github.com/) 页面下载最新的 `androidApp-debug.apk`，通过 ADB 命令安装到连接的手机：
+从本仓库的 Releases 页面下载已完成签名的 **`androidApp-release.apk`**，通过 ADB 命令安装到连接的手机：
 ```shell
-adb install -r androidApp-debug.apk
+adb install -r androidApp-release.apk
 ```
 
 #### 2. 从源码编译 APK
@@ -179,21 +171,25 @@ adb install -r androidApp-debug.apk
 
 - **Windows 控制台 / PowerShell**：
   ```shell
+  # 编译签名 Release APK:
+  .\gradlew.bat :androidApp:assembleRelease
+
+  # 或编译 Debug APK:
   .\gradlew.bat :androidApp:assembleDebug
   ```
 - **macOS / Linux 终端**：
   ```shell
-  ./gradlew :androidApp:assembleDebug
+  ./gradlew :androidApp:assembleRelease
   ```
 
 编译生成的 APK 位于：
 ```
-androidApp/build/outputs/apk/debug/androidApp-debug.apk
+androidApp/build/outputs/apk/release/androidApp-release.apk
 ```
 
 使用 ADB 直接将新编译好的 APK 安装并启动：
 ```shell
-adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+adb install -r androidApp/build/outputs/apk/release/androidApp-release.apk
 adb shell am start -n com.example.cddddzhelper/.MainActivity
 ```
 
@@ -284,4 +280,3 @@ cd training
 本项目基于 Apache 2.0 许可证开源，详情参见 [LICENSE](LICENSE) 文件。
 
 *免责声明：本软件仅作为辅助娱乐与无障碍便利工具，供个人技术交流与研究学习使用。扑克牌及相关游戏图案知识产权归其版权所有方所有。*
-

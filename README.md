@@ -1,24 +1,16 @@
 # CDD & DDZ Helper (锄大地 / 斗地主 智能辅助与无障碍助手)
 
-<p align="center">
-  <img src="iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-180.png" width="96" height="96" alt="CDD DDZ Helper Icon" />
-</p>
+![CDD DDZ Helper Icon](iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/app-icon-180.png)
 
-<p align="center">
-  <strong>An Intelligent Computer Vision & Hands-Free Non-Visual Accessible Assistant for Cho Dai Dee (Big Two) and Dou Di Zhu (Fight the Landlord)</strong>
-</p>
+**An Intelligent Computer Vision & Hands-Free Non-Visual Accessible Assistant for Cho Dai Dee (Big Two) and Dou Di Zhu (Fight the Landlord)**
 
-<p align="center">
-  <a href="README.md"><strong>English</strong></a> | <a href="README_zh.md"><strong>中文说明</strong></a>
-</p>
+[English](README.md) | [中文说明](README_zh.md)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Release-v0.1.0--beta%20(Pre--release)-blue.svg" alt="Pre-release" />
-  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-brightgreen.svg" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Kotlin-Multiplatform%202.3.0-orange.svg" alt="Kotlin Multiplatform" />
-  <img src="https://img.shields.io/badge/Swift-5.9%20%2F%20SwiftUI-purple.svg" alt="SwiftUI" />
-  <img src="https://img.shields.io/badge/Model-YOLOv8s%20%2854%20Classes%29-red.svg" alt="YOLOv8s" />
-</p>
+![Release](https://img.shields.io/badge/Release-v0.1.0--beta%20(Pre--release)-blue.svg)
+![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-brightgreen.svg)
+![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform%202.3.0-orange.svg)
+![Swift](https://img.shields.io/badge/Swift-5.9%20%2F%20SwiftUI-purple.svg)
+![Model](https://img.shields.io/badge/Model-YOLOv8s%20(54%20Classes)-red.svg)
 
 ---
 
@@ -27,7 +19,7 @@
 > [!IMPORTANT]
 > **Pre-Release Milestone & Distribution Policy**:
 > - **Current Status**: This project is in its official **Pre-release** phase (`v0.1.0-beta`).
-> - **Android Distribution**: Pre-built Android APK binaries (`androidApp-debug.apk`) are packaged and distributed directly in GitHub Releases for immediate installation, side-loading, and testing on physical Android devices.
+> - **Android Distribution**: Pre-built, signed Android APK binaries (`androidApp-release.apk` and `androidApp-debug.apk`) are packaged and distributed directly via GitHub Releases for immediate installation, side-loading, and testing on physical Android devices.
 > - **iOS Distribution Policy**: The iOS version is **NOT distributed as binary packages (no `.ipa`, no TestFlight public build, and no App Store distribution)** at this stage, as distribution strictly requires an active Apple Developer Program enrollment and App Store review. Instead, **complete native Swift source code, the Xcode project, and a comprehensive local build guide are provided** in this repository. Anyone with a Mac can build and run it locally on iOS Simulators or their personal devices using Xcode.
 
 ---
@@ -52,7 +44,7 @@ The app combines cutting-edge **edge computer vision (YOLOv8s running on LiteRT 
 ### 🛡️ Two-Layer Joker Disambiguation Safeguard
 - **The Challenge**: Black Jokers under warm or tungsten lighting often reflect warm yellow-orange tones on paper, tricking standard neural networks into misclassifying them as Red Jokers.
 - **Layer-1 (Neural Network)**: YOLOv8s extracts candidate bounding boxes and preliminary class scores.
-- **Layer-2 (Real-Time HSV Chroma Analysis)**: An analytical heuristic (`JokerChromaResolver`) inspects the pixel hue and saturation within the card bounding box:
+- **Layer-2 (Real-Time HSV Chroma Analysis)**: An analytical heuristic (`JokerChromaResolver`) inspects pixel hue and saturation within the card bounding box:
   - Distinguishes genuine printing **True Red ink** (Hue $342^\circ-360^\circ$ and $0^\circ-14^\circ$, Saturation $\ge 0.28$) from **warm paper reflection** (Hue $25^\circ-50^\circ$).
   - Prevents false-positive Red Joker misclassifications while preserving 100% genuine Red Joker detections.
 
@@ -69,7 +61,7 @@ The app combines cutting-edge **edge computer vision (YOLOv8s running on LiteRT 
 Continuous listening engine recognizing natural speech and homophones across dialects:
 - **Cantonese (`zh-HK`)**: 香港粵語 (e.g., 鎖定, 鎖牌, 定牌, 得喇, 搞掂, 洗牌, 新一局, 再嚟, 睇牌, 睇下有咩出, 點樣出牌, 轉模式, 做地主, 當農民).
 - **Mandarin (`zh-CN`)**: 普通话 (e.g., 锁定, 锁牌, 洗牌, 新一局, 报牌, 读牌, 怎么出牌, 切换斗地主, 切换锄大地, 当地主, 当农民).
-- **English (`en-US`)**: (e.g., "lock cards", "new round", "reset", "read cards", "what to play", "switch to big two", "switch to doudizhu", "landlord", "peasant").
+- **English (`en-US`)**: (e.g., `lock cards`, `new round`, `reset`, `read cards`, `what to play`, `switch to big two`, `switch to doudizhu`, `landlord`, `peasant`).
 
 ### 🔊 Dual-Tier Text-to-Speech (TTS)
 - **Primary Tier**: Apple Native `AVSpeechSynthesizer` on iOS and Android native TTS for instant, offline voice responses.
@@ -169,31 +161,35 @@ CDD_DDZ_Helper/
 ### 🤖 Android Setup & Installation
 
 #### 1. Direct Pre-Release APK (Recommended for Testers)
-Download the latest `androidApp-debug.apk` directly from the [GitHub Releases](https://github.com/) page and install it on your device:
+Download the signed **`androidApp-release.apk`** directly from the GitHub Releases page and install it on your device:
 ```shell
-adb install -r androidApp-debug.apk
+adb install -r androidApp-release.apk
 ```
 
 #### 2. Building from Source
-Clone the repository and compile the debug APK using Gradle:
+Clone the repository and compile the APK using Gradle:
 
 - **Windows (Command Prompt / PowerShell)**:
   ```shell
+  # To build signed Release APK:
+  .\gradlew.bat :androidApp:assembleRelease
+
+  # Or to build Debug APK:
   .\gradlew.bat :androidApp:assembleDebug
   ```
 - **macOS / Linux**:
   ```shell
-  ./gradlew :androidApp:assembleDebug
+  ./gradlew :androidApp:assembleRelease
   ```
 
 Output APK will be located at:
 ```
-androidApp/build/outputs/apk/debug/androidApp-debug.apk
+androidApp/build/outputs/apk/release/androidApp-release.apk
 ```
 
 To install and launch directly on a connected Android phone:
 ```shell
-adb install -r androidApp/build/outputs/apk/debug/androidApp-debug.apk
+adb install -r androidApp/build/outputs/apk/release/androidApp-release.apk
 adb shell am start -n com.example.cddddzhelper/.MainActivity
 ```
 

@@ -21,6 +21,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // For pre-release / beta builds: sign with debug keystore so physical devices can install it directly
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
