@@ -19,7 +19,7 @@
 > [!IMPORTANT]
 > **预发布里程碑与分发策略说明**：
 > - **当前发布状态**：本项目目前处于首发**预发布阶段 (Pre-release, `v0.1.0-beta`)**。
-> - **Android 分发形式**：已在 GitHub Releases 中提供打包且已完成签名的安装文件（`androidApp-release.apk` 与 `androidApp-debug.apk`），支持在实体 Android 手机上直接下载、安装并进行测试体验。
+> - **Android 分发形式**：已在 GitHub Releases 中提供安装文件（`androidApp-release.apk`），支持在实体 Android 手机上直接下载、安装并进行测试体验。
 > - **iOS 分发策略**：由于苹果生态对应用分发有严格的 App Store 上架及开发者证书签名限制，**iOS 版本暂不提供安装包（不提供 `.ipa`、TestFlight 公测安装或 App Store 下载）**。本项目提供**完整的 iOS 原生源代码、Xcode 工程文件及详尽的本地编译运行指南**。开发者与测试人员可使用 Mac 设备通过 Xcode 将应用编译并部署至 iOS 模拟器或个人 iPhone/iPad 上体验。
 
 ---
