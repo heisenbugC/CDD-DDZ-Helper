@@ -19,7 +19,7 @@
 > [!IMPORTANT]
 > **Pre-Release Milestone & Distribution Policy**:
 > - **Current Status**: This project is in its official **Pre-release** phase (`v0.1.0-beta`).
-> - **Android Distribution**: Pre-built, signed Android APK binaries (`androidApp-release.apk`) are packaged and distributed directly via GitHub Releases for immediate installation, side-loading, and testing on physical Android devices.
+> - **Android Distribution**: Android APK (`androidApp-release.apk`) is packaged and distributed directly via GitHub Releases for immediate installation, side-loading, and testing on physical Android devices.
 > - **iOS Distribution Policy**: The iOS version is **NOT distributed as binary packages (no `.ipa`, no TestFlight public build, and no App Store distribution)** at this stage, as distribution strictly requires an active Apple Developer Program enrollment and App Store review. Instead, **complete native Swift source code, the Xcode project, and a comprehensive local build guide are provided** in this repository. Anyone with a Mac can build and run it locally on iOS Simulators or their personal devices using Xcode.
 
 ---
